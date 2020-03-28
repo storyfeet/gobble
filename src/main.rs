@@ -1,9 +1,10 @@
-pub mod basic;
 pub mod combi;
 pub mod err;
+pub mod ptrait;
 pub mod reader;
-use basic::{ws, ParseRes, Parser};
+use combi::maybe;
 use err::ParseError;
+use ptrait::{ws, ParseRes, Parser};
 use reader::*;
 
 #[derive(Debug)]
@@ -17,6 +18,7 @@ pub enum Op {
 #[derive(Debug)]
 pub enum Expr {
     Val(i32),
+    Parenth(Box<Expr>),
     Oper(Op, Box<Expr>, Box<Expr>),
     //Bracket(Box<Expr>),
 }
@@ -37,10 +39,21 @@ fn parse_op<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Op> {
 }
 
 fn parse_expr_l<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
-    if let Ok((ir, v)) = ws(0).ig_then(read_f::<_, _, String>(is_num, 1)).parse(i) {
-        return Ok((ir, Expr::Val(v.parse().unwrap())));
+    if let Ok((ir, e)) = tag("(").ig_then(parse_expr).then_ig(tag(")")).parse(i) {
+        return Ok((ir, Expr::Parenth(Box::new(e))));
     }
-    return Err(ParseError::new("Expr Left fail", 0));
+    if let Ok((ir, (neg, v))) = ws(0)
+        .ig_then(maybe(tag("-")))
+        .then(read_f::<_, _, String>(is_num, 1))
+        .parse(i)
+    {
+        let mut n: i32 = v.parse().unwrap();
+        if neg.is_some() {
+            n = -n;
+        }
+        return Ok((ir, Expr::Val(n)));
+    }
+    Err(ParseError::new("Expr Left fail", 0))
 }
 
 pub fn parse_expr<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
@@ -68,12 +81,12 @@ fn main() -> Result<(), std::io::Error> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::basic::*;
     use crate::combi::*;
+    use crate::ptrait::*;
     use crate::reader::*;
     #[test]
     fn test_can_build_ws_with_other() {
-        let parser = wrap::<_, _, std::str::Chars, _>(ws(2), take(|c| c == 'p', 4));
+        let parser = wrap::<_, _, std::str::Chars, _, _>(ws(2), take(|c| c == 'p', 4));
         //let parser = take(|c| c == ' ' || c == 'p', 4);
         let (mut r, _) = parser.parse(&"  pppp  ,".chars()).unwrap();
         assert_eq!(r.next(), Some(','));

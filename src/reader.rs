@@ -1,5 +1,6 @@
-use crate::basic::{ParseRes, Parser};
 use crate::err::ParseError;
+use crate::ptrait::{ParseRes, Parser};
+use std::collections::BTreeMap;
 //use std::iter::FromIterator;
 
 pub struct Read<F> {
@@ -68,6 +69,13 @@ impl<T> Len for Vec<T> {
 pub fn is_num(c: &char) -> bool {
     *c >= '0' && *c <= '9'
 }
+pub fn is_alpha(c: &char) -> bool {
+    (*c >= 'A' && *c <= 'Z') || (*c >= 'a' && *c <= 'z') || *c == '_'
+}
+
+pub fn is_alpha_num(c: &char) -> bool {
+    is_num(c) || is_alpha(c)
+}
 
 pub fn read_f<F, C, V>(f: F, min: usize) -> Read<impl Fn(V, C) -> ReadResult<V>>
 where
@@ -118,5 +126,65 @@ impl<I: Iterator<Item = char> + Clone> Parser<I, &'static str> for Tag {
             }
         }
         Ok((i, self.s))
+    }
+}
+
+//Currently only escapes single chars
+pub struct Escape {
+    esc: char,
+    map: BTreeMap<char, char>,
+    close: char,
+}
+impl<I> Parser<I, String> for Escape
+where
+    I: Iterator<Item = char> + Clone,
+{
+    fn parse(&self, i: &I) -> ParseRes<I, String> {
+        let mut i = i.clone();
+        let mut res = String::new();
+        while let Some(c) = i.next() {
+            if c == self.close {
+                return Ok((i, res));
+            }
+            if c == self.esc {
+                if let Some(c2) = i.next() {
+                    match self.map.get(&c2) {
+                        Some(cr) => res.push(*cr),
+                        None => res.push(c2),
+                    }
+                }
+            } else {
+                res.push(c);
+            }
+        }
+        Err(ParseError::new("un closed escaper", 0))
+    }
+}
+
+pub fn esc(close: char, esc: char) -> Escape {
+    Escape {
+        close,
+        esc,
+        map: BTreeMap::new(),
+    }
+}
+
+impl Escape {
+    pub fn e_map(mut self, f: char, t: char) -> Self {
+        self.map.insert(f, t);
+        self
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    pub fn test_escape() {
+        let s = r#""he\tl\\lo to you\" "pop"#;
+        let p = tag("\"").ig_then(esc('\"', '\\').e_map('t', '\t'));
+        let (_, r) = p.parse(&s.chars()).unwrap();
+        assert_eq!(r, "he\tl\\lo to you\" ");
     }
 }
