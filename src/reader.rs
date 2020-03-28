@@ -65,6 +65,10 @@ impl<T> Len for Vec<T> {
     }
 }
 
+pub fn is_num(c: &char) -> bool {
+    *c >= '0' && *c <= '9'
+}
+
 pub fn read_f<F, C, V>(f: F, min: usize) -> Read<impl Fn(V, C) -> ReadResult<V>>
 where
     F: Fn(&C) -> bool,
