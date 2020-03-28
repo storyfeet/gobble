@@ -96,3 +96,27 @@ where
 {
     Read { f }
 }
+
+pub struct Tag {
+    s: &'static str,
+}
+pub fn tag(s: &'static str) -> Tag {
+    Tag { s }
+}
+impl<I: Iterator<Item = char> + Clone> Parser<I, &'static str> for Tag {
+    fn parse(&self, i: &I) -> ParseRes<I, &'static str> {
+        let mut i = i.clone();
+        let mut s_it = self.s.chars();
+        while let Some(c) = s_it.next() {
+            match i.next() {
+                None => return Err(ParseError::new("not long enough for tag", 0)),
+                Some(ic) => {
+                    if ic != c {
+                        return Err(ParseError::new("no_match", 0));
+                    }
+                }
+            }
+        }
+        Ok((i, self.s))
+    }
+}

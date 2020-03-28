@@ -7,29 +7,63 @@ use err::ParseError;
 use reader::*;
 
 #[derive(Debug)]
-pub enum Expr {
-    Val(i32),
-    Add(Box<Expr>, Box<Expr>),
+pub enum Op {
+    Add,
+    Sub,
+    Div,
+    Mul,
 }
 
-fn parse_expr<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
-    if let Ok((ir, (v1, v2))) = parse_expr.then_ig(ws(1)).then(parse_expr).parse(i) {
-        return Ok((ir, Expr::Add(Box::new(v1), Box::new(v2))));
-    }
-    if let Ok((ir, v)) = read_f::<_, _, String>(is_num, 1).parse(i) {
+#[derive(Debug)]
+pub enum Expr {
+    Val(i32),
+    Oper(Op, Box<Expr>, Box<Expr>),
+    //Bracket(Box<Expr>),
+}
+
+fn parse_op<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Op> {
+    let parser = ws(0)
+        .ig_then(tag("+").or(tag("-")).or(tag("*")).or(tag("/")))
+        .then_ig(ws(0));
+    let (ri, c) = parser.parse(i)?;
+    let rop = match c {
+        "+" => Op::Add,
+        "-" => Op::Sub,
+        "*" => Op::Mul,
+        "/" => Op::Div,
+        _ => return Err(ParseError::new("Not sure how this happend, parse_op", 0)),
+    };
+    Ok((ri, rop))
+}
+
+fn parse_expr_l<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
+    if let Ok((ir, v)) = ws(0).ig_then(read_f::<_, _, String>(is_num, 1)).parse(i) {
         return Ok((ir, Expr::Val(v.parse().unwrap())));
     }
-    Err(ParseError::new("Could not form expr", 0))
+    return Err(ParseError::new("Expr Left fail", 0));
+}
+
+pub fn parse_expr<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
+    let (ir, l) = parse_expr_l.parse(i)?;
+    if let Ok((ir, (o, v2))) = parse_op.then(parse_expr).parse(&ir) {
+        return Ok((ir, Expr::Oper(o, Box::new(l), Box::new(v2))));
+    }
+    Ok((ir, l))
 }
 
 fn main() -> Result<(), std::io::Error> {
     let stdin = std::io::stdin();
     loop {
         let mut s = String::new();
-        stdin.read_line(&mut s)?;
+        match stdin.read_line(&mut s) {
+            Ok(0) => return Ok(()),
+            Err(e) => return Err(e),
+            _ => {}
+        }
         let e = parse_expr(&s.chars());
-        println!("{:?}", e)
+        println!("{:?}", e);
     }
+    //Ok(())
 }
 
 #[cfg(test)]
