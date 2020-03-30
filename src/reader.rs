@@ -1,10 +1,13 @@
 use crate::err::ParseError;
 use crate::ptrait::{ParseRes, Parser};
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 //use std::iter::FromIterator;
 
-pub struct Read<F> {
+pub struct Read<I, F> {
     f: F,
+    min: usize,
+    phi: PhantomData<I>,
 }
 
 //pub fn ident(Str)
@@ -18,23 +21,31 @@ pub enum ReadResult<V> {
     Err(ParseError),
 }
 
-impl<F, I, C, V: Default> Parser<I, V> for Read<F>
+impl<F, I, C, V: Default> Parser<I, V> for Read<I, F>
 where
     F: Fn(V, C) -> ReadResult<V>,
     I: Clone + Iterator<Item = C>,
 {
     fn parse(&self, i: &I) -> ParseRes<I, V> {
+        let min_ok = move |n, i, v| {
+            if n >= self.min {
+                Ok((i, v))
+            } else {
+                Err(ParseError::new("not enough read", 0))
+            }
+        };
         let mut res = V::default();
         let mut i = i.clone();
         let mut i2 = i.clone();
-        let mut req = true;
+        let mut req = self.min > 0;
+        let mut n = 0;
         while let Some(p) = i.next() {
             match (self.f)(res, p) {
-                ReadResult::Done(v) => return Ok((i, v)),
-                ReadResult::Back(v) => return Ok((i2, v)),
+                ReadResult::Done(v) => return min_ok(n, i, v), //Ok((i, v)),
+                ReadResult::Back(v) => return min_ok(n, i2, v),
                 ReadResult::Cont(v) => {
                     res = v;
-                    req = false
+                    req = false;
                 }
                 ReadResult::Req(v) => {
                     res = v;
@@ -43,11 +54,12 @@ where
                 ReadResult::Err(e) => return Err(e),
             }
             i2 = i.clone();
+            n += 1
         }
         if req {
             return Err(ParseError::new("Still more required for Read::parse", 0));
         }
-        Ok((i, res))
+        min_ok(n, i, res)
     }
 }
 
@@ -77,10 +89,19 @@ pub fn is_alpha_num(c: &char) -> bool {
     is_num(c) || is_alpha(c)
 }
 
-pub fn read_f<F, C, V>(f: F, min: usize) -> Read<impl Fn(V, C) -> ReadResult<V>>
+pub fn read_fs<I, F>(f: F, min: usize) -> Read<I, impl Fn(String, char) -> ReadResult<String>>
+where
+    F: Fn(&char) -> bool,
+    I: Iterator<Item = char>,
+{
+    read_f(f, min)
+}
+
+pub fn read_f<I, F, C, V>(f: F, min: usize) -> Read<I, impl Fn(V, C) -> ReadResult<V>>
 where
     F: Fn(&C) -> bool,
     V: std::iter::Extend<C> + Len,
+    I: Iterator<Item = C>,
 {
     let fr = move |mut v: V, c: C| {
         if f(&c) {
@@ -95,14 +116,19 @@ where
         }
         return ReadResult::Back(v);
     };
-    Read { f: fr }
+    read(fr, min)
 }
 
-pub fn read<F, V, C>(f: F) -> Read<F>
+pub fn read<I, F, V, C>(f: F, min: usize) -> Read<I, F>
 where
     F: Fn(V, C) -> ReadResult<V>,
+    I: Iterator<Item = C>,
 {
-    Read { f }
+    Read {
+        f,
+        min,
+        phi: PhantomData,
+    }
 }
 
 pub struct Tag {

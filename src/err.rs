@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use failure_derive::*;
+#[derive(Debug, Clone, PartialEq, Fail)]
+#[fail(display = "Parse Error on line {} : {}", mess, line)]
 pub struct ParseError {
     mess: &'static str,
     line: u64,
