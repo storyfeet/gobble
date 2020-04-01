@@ -31,8 +31,8 @@ impl<'a> LCChars<'a> {
     pub fn err_c(&self, c: ECode) -> ParseError {
         ParseError::code(c, self.l, self.c)
     }
-    pub fn err_cr(&self, c: ECode) -> ParseError {
-        ParseError::code(c, self.l, self.c)
+    pub fn err_cr<V>(&self, c: ECode) -> Result<V, ParseError> {
+        Err(ParseError::code(c, self.l, self.c))
     }
 }
 

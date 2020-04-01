@@ -1,4 +1,4 @@
-use crate::err::ParseError;
+use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 use std::collections::BTreeMap;
@@ -17,7 +17,7 @@ pub enum ReadResult<V> {
     Done(V),
     Back(V),
     Req(V),
-    Err(ParseError),
+    Err(ECode),
 }
 
 impl<F> Parser<String> for Read<F>
@@ -25,13 +25,6 @@ where
     F: Fn(String, char) -> ReadResult<String>,
 {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, String> {
-        let min_ok = move |n, i, v| {
-            if n >= self.min {
-                Ok((i, v))
-            } else {
-                Err(ParseError::new("not enough read", 0))
-            }
-        };
         let mut res = String::new();
         let mut i = i.clone();
         let mut i2 = i.clone();
@@ -39,8 +32,20 @@ where
         let mut n = 0;
         while let Some(p) = i.next() {
             match (self.f)(res, p) {
-                ReadResult::Done(v) => return min_ok(n, i, v), //Ok((i, v)),
-                ReadResult::Back(v) => return min_ok(n, i2, v),
+                ReadResult::Done(v) => {
+                    return if n >= self.min {
+                        Ok((i, v))
+                    } else {
+                        i.err_r("not enough read")
+                    }
+                }
+                ReadResult::Back(v) => {
+                    return if n >= self.min {
+                        Ok((i2, v))
+                    } else {
+                        i.err_r("not enough read")
+                    }
+                }
                 ReadResult::Cont(v) => {
                     res = v;
                     req = false;
@@ -49,15 +54,19 @@ where
                     res = v;
                     req = true
                 }
-                ReadResult::Err(e) => return Err(e),
+                ReadResult::Err(e) => return i.err_cr(e),
             }
             i2 = i.clone();
             n += 1
         }
         if req {
-            return Err(ParseError::new("Still more required for Read::parse", 0));
+            return i.err_r("Still more required for Read::parse");
         }
-        min_ok(n, i, res)
+        if n >= self.min {
+            Ok((i, res))
+        } else {
+            i.err_r("not enough read")
+        }
     }
 }
 
@@ -92,15 +101,15 @@ where
     F: Fn(char) -> bool,
 {
     let fr = move |mut v: String, c: char| {
-        if f(&c) {
-            v.extend(Some(c));
+        if f(c) {
+            v.push(c);
             if v.get_len() < min {
                 return ReadResult::Req(v);
             }
             return ReadResult::Cont(v);
         }
         if v.get_len() < min {
-            return ReadResult::Err(ParseError::new("not enough to read_f", 0));
+            return ReadResult::Err(ECode::SMess("not enough to read_f"));
         }
         return ReadResult::Back(v);
     };
@@ -126,10 +135,10 @@ impl Parser<&'static str> for Tag {
         let mut s_it = self.s.chars();
         while let Some(c) = s_it.next() {
             match i.next() {
-                None => return Err(ParseError::new("not long enough for tag", 0)),
+                None => return i.err_r("not long enough for tag"),
                 Some(ic) => {
                     if ic != c {
-                        return Err(ParseError::new("no_match", 0));
+                        return i.err_r("no_match");
                     }
                 }
             }
@@ -163,7 +172,7 @@ impl Parser<String> for Escape {
                 res.push(c);
             }
         }
-        Err(ParseError::new("un closed escaper", 0))
+        i.err_r("un closed escape")
     }
 }
 
@@ -190,7 +199,7 @@ pub mod test {
     pub fn test_escape() {
         let s = r#""he\tl\\lo to you\" "pop"#;
         let p = tag("\"").ig_then(esc('\"', '\\').e_map('t', '\t'));
-        let (_, r) = p.parse(&s.chars()).unwrap();
+        let r = p.parse_s(s).unwrap();
         assert_eq!(r, "he\tl\\lo to you\" ");
     }
 }

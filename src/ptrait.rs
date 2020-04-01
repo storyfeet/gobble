@@ -7,7 +7,7 @@ pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
 pub trait Parser<V>: Sized {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V>;
     fn parse_s(&self, s: &str) -> Result<V, ParseError> {
-        self.parse(LCChars::str(s)).map(|(i, v)| v)
+        self.parse(&LCChars::str(s)).map(|(i, v)| v)
     }
     fn then<P: Parser<V2>, V2>(self, p: P) -> Then<Self, P> {
         Then { one: self, two: p }
@@ -21,35 +21,36 @@ pub trait Parser<V>: Sized {
         }
     }
     fn ig_then<P: Parser<V2>, V2>(self, p: P) -> IgThen<Self, P, V, V2> {
-        IgThen { one: self, two: p }
-    }
-    fn or<P: Parser<V>>(self, p: P) -> Or<Self, P> {
-        Or {
-            a: self,
-            b: p,
-            phi: PhantomData,
+        IgThen {
+            one: self,
+            two: p,
+            pha: PhantomData,
+            phb: PhantomData,
         }
     }
-}
-
-impl<'a, V, F: Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
-    fn parse<'b>(&self, i: &LCChars<'b>) -> ParseRes<'b, V> {
-        self(i)
+    fn or<P: Parser<V>>(self, p: P) -> Or<Self, P> {
+        Or { a: self, b: p }
     }
 }
 
-impl<F> Parser<F> for Take<F>
+impl<'a, V, F: Fn::<'a>(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
+    fn parse<'b>(&self, i: &LCChars<'b>) -> ParseRes<'b, V> {
+        self::<'b>(i)
+    }
+}
+
+impl<F> Parser<()> for Take<F>
 where
     F: Fn(char) -> bool,
 {
-    fn parse<'a>(&self, i: &LCChars) -> ParseRes<'a, ()> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut n = 0;
         let mut i = i.clone();
         let mut i2 = i.clone();
         while let Some(c) = i.next() {
             if !(self.f)(c) {
                 if n < self.min {
-                    return Err(ParseError::new("not enough to take", 0));
+                    return i.err_r("not enough to take");
                 }
                 return Ok((i2, ()));
             }
@@ -57,7 +58,7 @@ where
             i2.next();
         }
         if n < self.min {
-            return Err(i.err("End of str before end of take", 0));
+            return i.err_r("End of str before end of take");
         }
         Ok((i2, ()))
     }
@@ -108,12 +109,12 @@ pub struct ThenIg<A, B, AV, BV> {
     phb: PhantomData<BV>,
 }
 
-impl<A, B, AV, BV> Parser<BV> for ThenIg<A, B, AV, BV>
+impl<A, B, AV, BV> Parser<AV> for ThenIg<A, B, AV, BV>
 where
     A: Parser<AV>,
     B: Parser<BV>,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<AV> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, AV> {
         let (i, v1) = self.one.parse(i)?;
         let (i, _) = self.two.parse(&i)?;
         Ok((i, v1))
