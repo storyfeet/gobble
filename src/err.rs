@@ -10,6 +10,8 @@ pub enum ECode {
     SMess(&'static str),
     #[fail(display = "{}", 0)]
     Mess(String),
+    #[fail(display = "{}::{}", 0, 1)]
+    Wrap(&'static str, Box<ParseError>),
 }
 
 #[derive(Debug, Clone, PartialEq, Fail)]
