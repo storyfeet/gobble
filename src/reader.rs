@@ -1,13 +1,12 @@
 use crate::err::ParseError;
+use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 use std::collections::BTreeMap;
-use std::marker::PhantomData;
 //use std::iter::FromIterator;
 
-pub struct Read<I, F> {
+pub struct Read<F> {
     f: F,
     min: usize,
-    phi: PhantomData<I>,
 }
 
 //pub fn ident(Str)
@@ -21,12 +20,11 @@ pub enum ReadResult<V> {
     Err(ParseError),
 }
 
-impl<F, I, C, V: Default> Parser<I, V> for Read<I, F>
+impl<F> Parser<String> for Read<F>
 where
-    F: Fn(V, C) -> ReadResult<V>,
-    I: Clone + Iterator<Item = C>,
+    F: Fn(String, char) -> ReadResult<String>,
 {
-    fn parse(&self, i: &I) -> ParseRes<I, V> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, String> {
         let min_ok = move |n, i, v| {
             if n >= self.min {
                 Ok((i, v))
@@ -34,7 +32,7 @@ where
                 Err(ParseError::new("not enough read", 0))
             }
         };
-        let mut res = V::default();
+        let mut res = String::new();
         let mut i = i.clone();
         let mut i2 = i.clone();
         let mut req = self.min > 0;
@@ -89,21 +87,11 @@ pub fn is_alpha_num(c: &char) -> bool {
     is_num(c) || is_alpha(c)
 }
 
-pub fn read_fs<I, F>(f: F, min: usize) -> Read<I, impl Fn(String, char) -> ReadResult<String>>
+pub fn read_fs<F>(f: F, min: usize) -> Read<impl Fn(String, char) -> ReadResult<String>>
 where
-    F: Fn(&char) -> bool,
-    I: Iterator<Item = char>,
+    F: Fn(char) -> bool,
 {
-    read_f(f, min)
-}
-
-pub fn read_f<I, F, C, V>(f: F, min: usize) -> Read<I, impl Fn(V, C) -> ReadResult<V>>
-where
-    F: Fn(&C) -> bool,
-    V: std::iter::Extend<C> + Len,
-    I: Iterator<Item = C>,
-{
-    let fr = move |mut v: V, c: C| {
+    let fr = move |mut v: String, c: char| {
         if f(&c) {
             v.extend(Some(c));
             if v.get_len() < min {
@@ -119,16 +107,11 @@ where
     read(fr, min)
 }
 
-pub fn read<I, F, V, C>(f: F, min: usize) -> Read<I, F>
+pub fn read<F>(f: F, min: usize) -> Read<F>
 where
-    F: Fn(V, C) -> ReadResult<V>,
-    I: Iterator<Item = C>,
+    F: Fn(String, char) -> ReadResult<String>,
 {
-    Read {
-        f,
-        min,
-        phi: PhantomData,
-    }
+    Read { f, min }
 }
 
 pub struct Tag {
@@ -137,8 +120,8 @@ pub struct Tag {
 pub fn tag(s: &'static str) -> Tag {
     Tag { s }
 }
-impl<I: Iterator<Item = char> + Clone> Parser<I, &'static str> for Tag {
-    fn parse(&self, i: &I) -> ParseRes<I, &'static str> {
+impl Parser<&'static str> for Tag {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         let mut i = i.clone();
         let mut s_it = self.s.chars();
         while let Some(c) = s_it.next() {
@@ -161,11 +144,8 @@ pub struct Escape {
     map: BTreeMap<char, char>,
     close: char,
 }
-impl<I> Parser<I, String> for Escape
-where
-    I: Iterator<Item = char> + Clone,
-{
-    fn parse(&self, i: &I) -> ParseRes<I, String> {
+impl Parser<String> for Escape {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, String> {
         let mut i = i.clone();
         let mut res = String::new();
         while let Some(c) = i.next() {

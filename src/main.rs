@@ -1,7 +1,3 @@
-pub mod combi;
-pub mod err;
-pub mod ptrait;
-pub mod reader;
 use combi::maybe;
 use err::ParseError;
 use ptrait::{ws, ParseRes, Parser};

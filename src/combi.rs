@@ -1,16 +1,16 @@
+use crate::iter::*;
 use crate::ptrait::*;
 use std::marker::PhantomData;
 
-pub struct Maybe<I, A> {
+pub struct Maybe<A> {
     p: A,
-    phi: PhantomData<I>,
 }
 
-impl<A, I: Iterator + Clone, V> Parser<I, Option<V>> for Maybe<I, A>
+impl<A, V> Parser<Option<V>> for Maybe<A>
 where
-    A: Parser<I, V>,
+    A: Parser<V>,
 {
-    fn parse(&self, i: &I) -> ParseRes<I, Option<V>> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Option<V>> {
         match self.p.parse(i) {
             Ok((ir, v)) => Ok((ir, Some(v))),
             Err(_) => Ok((i.clone(), None)),
@@ -18,27 +18,23 @@ where
     }
 }
 
-pub fn maybe<P: Parser<I, V>, I, V>(p: P) -> Maybe<I, P> {
-    Maybe {
-        p,
-        phi: PhantomData,
-    }
+pub fn maybe<P: Parser<V>, V>(p: P) -> Maybe<P> {
+    Maybe { p }
 }
 
-pub struct Wrap<I, A, B, VA, VB> {
+pub struct Wrap<A, B, VA, VB> {
     a: A,
     b: B,
-    phi: PhantomData<I>,
     pha: PhantomData<VA>,
     phb: PhantomData<VB>,
 }
 
-impl<I, A, B, VA, VB> Parser<I, VB> for Wrap<I, A, B, VA, VB>
+impl<A, B, VA, VB> Parser<VB> for Wrap<A, B, VA, VB>
 where
-    A: Parser<I, VA>,
-    B: Parser<I, VB>,
+    A: Parser<VA>,
+    B: Parser<VB>,
 {
-    fn parse(&self, i: &I) -> ParseRes<I, VB> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, VB> {
         let (i, _) = self.a.parse(i)?;
         let (i, res) = self.b.parse(&i)?;
         let (n, _) = self.a.parse(&i)?;
@@ -46,15 +42,14 @@ where
     }
 }
 
-pub fn wrap<A, B, I, VA, VB>(a: A, b: B) -> Wrap<I, A, B, VA, VB>
+pub fn wrap<A, B, VA, VB>(a: A, b: B) -> Wrap<A, B, VA, VB>
 where
-    A: Parser<I, VA>,
-    B: Parser<I, VB>,
+    A: Parser<VA>,
+    B: Parser<VB>,
 {
     Wrap {
         a,
         b,
-        phi: PhantomData,
         pha: PhantomData,
         phb: PhantomData,
     }
