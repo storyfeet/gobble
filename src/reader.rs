@@ -131,6 +131,21 @@ pub struct Tag {
 pub fn tag(s: &'static str) -> Tag {
     Tag { s }
 }
+
+pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
+    //ws(0).ig_then(tag(s)).then_ig(ws(0))
+    crate::combi::wrap(ws(0), tag(s))
+}
+
+pub fn ws(min: usize) -> impl Parser<()> {
+    take(
+        |c| match c {
+            ' ' | '\t' | '\r' => true,
+            _ => false,
+        },
+        min,
+    )
+}
 impl Parser<&'static str> for Tag {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         let mut i = i.clone();
@@ -194,6 +209,43 @@ impl Escape {
     }
 }
 
+impl<F> Parser<()> for Take<F>
+where
+    F: Fn(char) -> bool,
+{
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
+        let mut n = 0;
+        let mut i = i.clone();
+        let mut i2 = i.clone();
+        while let Some(c) = i.next() {
+            if !(self.f)(c) {
+                if n < self.min {
+                    return i.err_r("not enough to take");
+                }
+                return Ok((i2, ()));
+            }
+            n += 1;
+            i2.next();
+        }
+        if n < self.min {
+            return i.err_r("End of str before end of take");
+        }
+        Ok((i2, ()))
+    }
+}
+
+#[derive(Clone)]
+pub struct Take<F> {
+    f: F,
+    min: usize,
+}
+
+pub fn take<F>(f: F, min: usize) -> Take<F>
+where
+    F: Fn(char) -> bool,
+{
+    Take { f, min }
+}
 #[cfg(test)]
 pub mod test {
     use super::*;

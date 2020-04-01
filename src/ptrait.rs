@@ -1,4 +1,4 @@
-use crate::err::ParseError;
+use crate::err::{ECode, ParseError};
 use crate::iter::LCChars;
 use std::marker::PhantomData;
 
@@ -53,6 +53,19 @@ pub trait Parser<V>: Sized {
             phb: PhantomData,
         }
     }
+    /// Returns a Parser that converts the result of a successful parse to a different type.
+    /// however the map function can fail and return a result
+    /// The Error type should be err::ECode, this does not have line associated. That will
+    /// be attacked by the TryMap object
+    /// so this will pass that error up correctly
+    fn try_map<F: Fn(V) -> Result<V2, ECode>, V2>(self, f: F) -> TryMap<Self, V, V2, F> {
+        TryMap {
+            a: self,
+            f,
+            phav: PhantomData,
+            phb: PhantomData,
+        }
+    }
 }
 
 impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
@@ -61,53 +74,6 @@ impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
     }
 }
 
-impl<F> Parser<()> for Take<F>
-where
-    F: Fn(char) -> bool,
-{
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
-        let mut n = 0;
-        let mut i = i.clone();
-        let mut i2 = i.clone();
-        while let Some(c) = i.next() {
-            if !(self.f)(c) {
-                if n < self.min {
-                    return i.err_r("not enough to take");
-                }
-                return Ok((i2, ()));
-            }
-            n += 1;
-            i2.next();
-        }
-        if n < self.min {
-            return i.err_r("End of str before end of take");
-        }
-        Ok((i2, ()))
-    }
-}
-
-#[derive(Clone)]
-pub struct Take<F> {
-    f: F,
-    min: usize,
-}
-
-pub fn take<F>(f: F, min: usize) -> Take<F>
-where
-    F: Fn(char) -> bool,
-{
-    Take { f, min }
-}
-
-pub fn ws(min: usize) -> Take<impl Fn(char) -> bool> {
-    Take {
-        f: |c| match c {
-            ' ' | '\t' | '\r' => true,
-            _ => false,
-        },
-        min,
-    }
-}
 #[derive(Clone)]
 pub struct Then<A, B> {
     one: A,
@@ -198,5 +164,23 @@ impl<A: Parser<AV>, AV, B, F: Fn(AV) -> B> Parser<B> for Map<A, AV, B, F> {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
         Ok((ri, (self.f)(v)))
+    }
+}
+
+#[derive(Clone)]
+pub struct TryMap<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> {
+    a: A,
+    f: F,
+    phb: PhantomData<B>,
+    phav: PhantomData<AV>,
+}
+
+impl<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> Parser<B> for TryMap<A, AV, B, F> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
+        let (ri, v) = self.a.parse(i)?;
+        match (self.f)(v) {
+            Ok(v2) => Ok((ri, v2)),
+            Err(e) => ri.err_cr(e),
+        }
     }
 }
