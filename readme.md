@@ -27,11 +27,27 @@ Mostly you will be combining functions with ```then()```, ```ig_then()```, ``the
 ## Example:
 
 ```rust
-/// A simple parser for a function call
-fn parse_f_call<'a>(LCChars<'a>)->ParseRes<'a,(String,Vec<String>)>{
-    let ident = read_fs(is_alpha).then(read_fs(is_alpha))
-    read_fs(is_alphanum)
-}
-```
+use gobble::*;
+let ident = || {
+    read_fs(is_alpha, 1)
+        .then(read_fs(is_alpha_num, 0))
+        .map(|(mut a, b)| {
+            a.push_str(&b);
+            a
+    })
+};
+
+let fsig = ident()
+    .then_ig(tag("("))
+    .then(sep(ident(), tag(","), true))
+    .then_ig(tag(")"));
+ 
+ let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
+ assert_eq!(nm, "loadFile1");
+ assert_eq!(args, vec!["fname", "ref"]);
+
+ assert!(fsig.parse_s("23file(fname,ref)").is_err());
+ 
+ ```
 
 
