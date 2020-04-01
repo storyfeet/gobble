@@ -1,7 +1,5 @@
-use combi::maybe;
-use err::ParseError;
-use ptrait::{ws, ParseRes, Parser};
-use reader::*;
+extern crate gobble;
+use gobble::*;
 
 #[derive(Debug)]
 pub enum Op {
@@ -19,7 +17,7 @@ pub enum Expr {
     //Bracket(Box<Expr>),
 }
 
-fn parse_op<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Op> {
+fn parse_op<'a>(i: &LCChars<'a>) -> ParseRes<'a, Op> {
     let parser = ws(0)
         .ig_then(tag("+").or(tag("-")).or(tag("*")).or(tag("/")))
         .then_ig(ws(0));
@@ -29,18 +27,18 @@ fn parse_op<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Op> {
         "-" => Op::Sub,
         "*" => Op::Mul,
         "/" => Op::Div,
-        _ => return Err(ParseError::new("Not sure how this happend, parse_op", 0)),
+        _ => return i.err_cr(ECode::Never("Op not in list")),
     };
     Ok((ri, rop))
 }
 
-fn parse_expr_l<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
+fn parse_expr_l<'a>(i: &LCChars<'a>) -> ParseRes<'a, Expr> {
     if let Ok((ir, e)) = tag("(").ig_then(parse_expr).then_ig(tag(")")).parse(i) {
         return Ok((ir, Expr::Parenth(Box::new(e))));
     }
     if let Ok((ir, (neg, v))) = ws(0)
         .ig_then(maybe(tag("-")))
-        .then(read_f::<_, _, String>(is_num, 1))
+        .then(read_fs(is_num, 1))
         .parse(i)
     {
         let mut n: i32 = v.parse().unwrap();
@@ -49,10 +47,10 @@ fn parse_expr_l<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
         }
         return Ok((ir, Expr::Val(n)));
     }
-    Err(ParseError::new("Expr Left fail", 0))
+    i.err_r("Expr Left Fail")
 }
 
-pub fn parse_expr<I: Iterator<Item = char> + Clone>(i: &I) -> ParseRes<I, Expr> {
+pub fn parse_expr<'a>(i: &LCChars<'a>) -> ParseRes<'a, Expr> {
     let (ir, l) = parse_expr_l.parse(i)?;
     if let Ok((ir, (o, v2))) = parse_op.then(parse_expr).parse(&ir) {
         return Ok((ir, Expr::Oper(o, Box::new(l), Box::new(v2))));
@@ -69,7 +67,7 @@ fn main() -> Result<(), std::io::Error> {
             Err(e) => return Err(e),
             _ => {}
         }
-        let e = parse_expr(&s.chars());
+        let e = parse_expr.parse_s(&s);
         println!("{:?}", e);
     }
     //Ok(())
@@ -77,22 +75,19 @@ fn main() -> Result<(), std::io::Error> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::combi::*;
-    use crate::ptrait::*;
-    use crate::reader::*;
+    use gobble::*;
     #[test]
     fn test_can_build_ws_with_other() {
-        let parser = wrap::<_, _, std::str::Chars, _, _>(ws(2), take(|c| c == 'p', 4));
-        //let parser = take(|c| c == ' ' || c == 'p', 4);
-        let (mut r, _) = parser.parse(&"  pppp  ,".chars()).unwrap();
+        let parser = wrap(ws(2), take(|c| c == 'p', 4));
+        let cc = LCChars::str("  pppp  ,");
+        let (mut r, _) = parser.parse(&cc).unwrap();
         assert_eq!(r.next(), Some(','));
     }
 
     #[test]
     fn test_can_read_str() {
-        let parser = read_f::<_, _, String>(|c: &char| *c == 'a' || *c == 'b', 2);
-        let (mut r, v) = parser.parse(&"ababc".chars()).unwrap();
+        let parser = read_fs(|c: char| c == 'a' || c == 'b', 2);
+        let v = parser.parse_s("ababc").unwrap();
         assert_eq!(v, "abab");
-        assert_eq!(r.next(), Some('c'));
     }
 }

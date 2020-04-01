@@ -4,6 +4,8 @@ use failure_derive::*;
 pub enum ECode {
     #[fail(display = "End of Input")]
     EOF,
+    #[fail(display = "This Error Should Never Happen: {}", 0)]
+    Never(&'static str),
     #[fail(display = "{}", 0)]
     SMess(&'static str),
     #[fail(display = "{}", 0)]

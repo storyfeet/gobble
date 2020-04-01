@@ -85,14 +85,14 @@ impl<T> Len for Vec<T> {
     }
 }
 
-pub fn is_num(c: &char) -> bool {
-    *c >= '0' && *c <= '9'
+pub fn is_num(c: char) -> bool {
+    c >= '0' && c <= '9'
 }
-pub fn is_alpha(c: &char) -> bool {
-    (*c >= 'A' && *c <= 'Z') || (*c >= 'a' && *c <= 'z') || *c == '_'
+pub fn is_alpha(c: char) -> bool {
+    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'
 }
 
-pub fn is_alpha_num(c: &char) -> bool {
+pub fn is_alpha_num(c: char) -> bool {
     is_num(c) || is_alpha(c)
 }
 
