@@ -2,6 +2,7 @@ use crate::iter::*;
 use crate::ptrait::*;
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct Maybe<A> {
     p: A,
 }
@@ -22,6 +23,7 @@ pub fn maybe<P: Parser<V>, V>(p: P) -> Maybe<P> {
     Maybe { p }
 }
 
+#[derive(Clone)]
 pub struct Wrap<A, B, VA, VB> {
     a: A,
     b: B,
@@ -41,7 +43,6 @@ where
         Ok((n, res))
     }
 }
-
 pub fn wrap<A, B, VA, VB>(a: A, b: B) -> Wrap<A, B, VA, VB>
 where
     A: Parser<VA>,

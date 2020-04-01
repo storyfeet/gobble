@@ -4,6 +4,7 @@ use crate::ptrait::{ParseRes, Parser};
 use std::collections::BTreeMap;
 //use std::iter::FromIterator;
 
+#[derive(Clone)]
 pub struct Read<F> {
     f: F,
     min: usize,
@@ -123,6 +124,7 @@ where
     Read { f, min }
 }
 
+#[derive(Clone)]
 pub struct Tag {
     s: &'static str,
 }
@@ -148,6 +150,7 @@ impl Parser<&'static str> for Tag {
 }
 
 //Currently only escapes single chars
+#[derive(Clone)]
 pub struct Escape {
     esc: char,
     map: BTreeMap<char, char>,

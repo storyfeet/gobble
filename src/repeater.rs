@@ -3,6 +3,7 @@ use crate::iter::LCChars;
 use crate::ptrait::*;
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct Separated<A: Parser<AV>, B: Parser<BV>, AV, BV> {
     a: A,
     b: B,
@@ -65,6 +66,7 @@ pub fn sep<A: Parser<AV>, B: Parser<BV>, AV, BV>(
     }
 }
 
+#[derive(Clone)]
 pub struct Repeater<A, AV> {
     a: A,
     pha: PhantomData<AV>,
