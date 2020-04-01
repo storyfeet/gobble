@@ -7,7 +7,7 @@ pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
 pub trait Parser<V>: Sized {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V>;
     fn parse_s(&self, s: &str) -> Result<V, ParseError> {
-        self.parse(&LCChars::str(s)).map(|(i, v)| v)
+        self.parse(&LCChars::str(s)).map(|(_, v)| v)
     }
     fn then<P: Parser<V2>, V2>(self, p: P) -> Then<Self, P> {
         Then { one: self, two: p }
@@ -33,9 +33,9 @@ pub trait Parser<V>: Sized {
     }
 }
 
-impl<'a, V, F: Fn::<'a>(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
+impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
     fn parse<'b>(&self, i: &LCChars<'b>) -> ParseRes<'b, V> {
-        self::<'b>(i)
+        self(i)
     }
 }
 
