@@ -17,9 +17,9 @@ pub enum ECode {
 #[derive(Debug, Clone, PartialEq, Fail)]
 #[fail(display = "Parse Error on line {} : {}", code, line)]
 pub struct ParseError {
-    code: ECode,
-    line: u64,
-    col: u64,
+    pub code: ECode,
+    pub line: u64,
+    pub col: u64,
 }
 
 impl ParseError {
