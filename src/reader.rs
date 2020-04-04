@@ -246,6 +246,19 @@ where
 {
     Take { f, min }
 }
+
+pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
+    let mut r = i.clone();
+    if r.next() == None {
+        return Ok((r, ()));
+    }
+    i.err_r("Still More Input")
+}
+
+pub fn to_end() -> impl Parser<()> {
+    ws(0).then_ig(eoi)
+}
+
 #[cfg(test)]
 pub mod test {
     use super::*;

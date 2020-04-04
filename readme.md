@@ -22,7 +22,7 @@ This is to help return the correct errors.
 
 the main.rs file is an example parser.
 
-Mostly you will be combining functions with ```then()```, ```ig_then()```, ``then_ig()```, and ```or()```
+Mostly you will be combining functions with ```then()```, ```ig_then()```, ```then_ig()```, and ```or()```
 
 ## Example:
 
@@ -50,4 +50,10 @@ let fsig = ident()
  
  ```
 
+
+## Changelog:
+
+### v 0.1.1 :
+
+Added ```eio``` and ```to_end()``` functions for making sure you have the end of the input;
 
