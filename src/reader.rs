@@ -12,12 +12,17 @@ pub struct Read<F> {
 
 //pub fn ident(Str)
 
-//pub trait Reader = Fn(V, C) -> ReadResult<V>;
+///This is the return result for any function wishing to work with Read
 pub enum ReadResult<V> {
+    ///Keep asking going
     Cont(V),
+    ///Stop here
     Done(V),
+    ///Stop, we've gone too far
     Back(V),
+    ///There is still more required
     Req(V),
+    ///There is an unresolveable problem
     Err(ECode),
 }
 
@@ -71,21 +76,6 @@ where
     }
 }
 
-pub trait Len {
-    fn get_len(&self) -> usize;
-}
-
-impl Len for String {
-    fn get_len(&self) -> usize {
-        self.len()
-    }
-}
-impl<T> Len for Vec<T> {
-    fn get_len(&self) -> usize {
-        self.len()
-    }
-}
-
 pub fn is_num(c: char) -> bool {
     c >= '0' && c <= '9'
 }
@@ -104,12 +94,12 @@ where
     let fr = move |mut v: String, c: char| {
         if f(c) {
             v.push(c);
-            if v.get_len() < min {
+            if v.len() < min {
                 return ReadResult::Req(v);
             }
             return ReadResult::Cont(v);
         }
-        if v.get_len() < min {
+        if v.len() < min {
             return ReadResult::Err(ECode::SMess("not enough to read_f"));
         }
         return ReadResult::Back(v);
@@ -128,15 +118,25 @@ where
 pub struct Tag {
     s: &'static str,
 }
+
+/// Check for a specifig string
+/// Returns the string, so that used with "or" you can see which result you got
 pub fn tag(s: &'static str) -> Tag {
     Tag { s }
 }
 
+///Conveniece wrapper for tag, often you want to allow whitespace
+/// around a tag of some kind
 pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
-    //ws(0).ig_then(tag(s)).then_ig(ws(0))
-    crate::combi::wrap(ws(0), tag(s))
+    s_(tag(s))
 }
 
+///Convenience wrapper to say allow whitespace around whatever I'm parsing.
+pub fn s_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
+    crate::combi::wrap(ws(0), p)
+}
+
+///Take at least n white space characters
 pub fn ws(min: usize) -> impl Parser<()> {
     take(
         |c| match c {
@@ -146,6 +146,7 @@ pub fn ws(min: usize) -> impl Parser<()> {
         min,
     )
 }
+
 impl Parser<&'static str> for Tag {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         let mut i = i.clone();
@@ -164,7 +165,8 @@ impl Parser<&'static str> for Tag {
     }
 }
 
-//Currently only escapes single chars
+///A reader for strings, that allows escaping one char and mapping to another char. The
+///returned string has already had the escape replace done
 #[derive(Clone)]
 pub struct Escape {
     esc: char,
@@ -194,6 +196,18 @@ impl Parser<String> for Escape {
     }
 }
 
+/// An commonly used form for quoted strings
+pub fn common_str() -> impl Parser<String> {
+    tag("\"").ig_then(
+        esc('\"', '\\')
+            .e_map('t', '\t')
+            .e_map('n', '\n')
+            .e_map('r', '\r'),
+    )
+}
+
+/// Build an escaper - used to complete a string, you will already have called checked for the
+/// opening part of the string
 pub fn esc(close: char, esc: char) -> Escape {
     Escape {
         close,
@@ -203,6 +217,14 @@ pub fn esc(close: char, esc: char) -> Escape {
 }
 
 impl Escape {
+    /// Add a character to the map, in a builder pattern way.
+    /// ```rust
+    /// use gobble::*;
+    /// let s = tag("\"").ig_then(esc('\"','\\')
+    ///     .e_map('t','\t').e_map('p','$'))
+    ///     .parse_s(r#""my \t \pstring""#).unwrap();
+    /// assert_eq!(s,"my \t $string")
+    /// ```
     pub fn e_map(mut self, f: char, t: char) -> Self {
         self.map.insert(f, t);
         self

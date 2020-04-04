@@ -55,5 +55,5 @@ let fsig = ident()
 
 ### v 0.1.1 :
 
-Added ```eio``` and ```to_end()``` functions for making sure you have the end of the input;
-
+Added ```eoi``` and ```to_end()``` functions for making sure you have the end of the input;
+Also added ```common_str()``` for getting the most common form of string
