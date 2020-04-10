@@ -102,3 +102,38 @@ pub fn repeat<A: Parser<AV>, AV>(a: A, min: usize) -> Repeater<A, AV> {
         pha: PhantomData,
     }
 }
+
+pub struct RepUntil<A, B, AV, BV> {
+    a: A,
+    b: B,
+    pha: PhantomData<AV>,
+    phb: PhantomData<BV>,
+}
+
+impl<A: Parser<AV>, B: Parser<BV>, AV, BV> Parser<Vec<AV>> for RepUntil<A, B, AV, BV> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+        let mut ri = i.clone();
+        let mut res = Vec::new();
+        loop {
+            ri = match self.a.parse(&ri) {
+                Ok((r, v)) => {
+                    res.push(v);
+                    r
+                }
+                Err(e) => match self.b.parse(&ri) {
+                    Ok((r, _)) => return Ok((r, res)),
+                    Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                },
+            }
+        }
+    }
+}
+
+pub fn repeat_until<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> RepUntil<A, B, AV, BV> {
+    RepUntil {
+        a,
+        b,
+        pha: PhantomData,
+        phb: PhantomData,
+    }
+}
