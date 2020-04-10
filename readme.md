@@ -2,7 +2,7 @@
 
 ## A not too generic parser for strings in Rust
 
-This parser exists take some of the generics and macros pain out of parsing. 
+This parser exists take some of the generics and macros pain out of parsing.  It is surprisingly declarative for something that is just a bunch of ```then()```s and ```or()```s
 
 A parser is anything that implements the Parser Trait
 
@@ -17,6 +17,7 @@ pub trait Parser<V>: Sized {
 ```
 This is automatically implemented for any function with the same signature.
 
+
 LCChars is a wrapper around the "Chars" iterator which tracks line number and column number.
 This is to help return the correct errors.
 
@@ -24,7 +25,22 @@ the main.rs file is an example parser.
 
 Mostly you will be combining functions with ```then()```, ```ig_then()```, ```then_ig()```, and ```or()```
 
-## Example:
+## Example 1:
+
+```rust
+use gobble::*;
+pub fn ident()=>impl Parser<String>{
+    read_fs(is_alpha,1)
+        .then(read_fs(is_alpha_num,0))
+        .map(|(mut a, b)| {
+            a.push_str(&b);
+            a
+    })
+}
+```
+
+## Example 2:
+Or more lazily with closures
 
 ```rust
 use gobble::*;
@@ -52,6 +68,11 @@ let fsig = ident()
 
 
 ## Changelog:
+
+### v 0.1.2 : 
+Added  ```sep_until(main,sep,close)```
+Added ```repeat_until(main,close)```
+Fixed Or Error to include both errors to make it easier to find the problems in branching iterators
 
 ### v 0.1.1 :
 

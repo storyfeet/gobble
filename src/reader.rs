@@ -153,10 +153,10 @@ impl Parser<&'static str> for Tag {
         let mut s_it = self.s.chars();
         while let Some(c) = s_it.next() {
             match i.next() {
-                None => return i.err_r("not long enough for tag"),
+                None => return i.err_cr(ECode::Tag(self.s)),
                 Some(ic) => {
                     if ic != c {
-                        return i.err_r("no_match");
+                        return i.err_cr(ECode::Tag(self.s));
                     }
                 }
             }

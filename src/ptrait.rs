@@ -144,10 +144,12 @@ where
     B: Parser<V>,
 {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V> {
-        if let Ok((r, v)) = self.a.parse(i) {
-            Ok((r, v))
-        } else {
-            self.b.parse(i)
+        match self.a.parse(i) {
+            Ok((r, v)) => Ok((r, v)),
+            Err(e) => match self.b.parse(i) {
+                Ok((r, v)) => Ok((r, v)),
+                Err(e2) => i.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+            },
         }
     }
 }

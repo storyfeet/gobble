@@ -129,11 +129,75 @@ impl<A: Parser<AV>, B: Parser<BV>, AV, BV> Parser<Vec<AV>> for RepUntil<A, B, AV
     }
 }
 
+///Repeats the first parser until the second parser.
+///returns a vec of the first parsers results
 pub fn repeat_until<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> RepUntil<A, B, AV, BV> {
     RepUntil {
         a,
         b,
         pha: PhantomData,
         phb: PhantomData,
+    }
+}
+
+pub struct SepUntil<A, B, C, AV, BV, CV> {
+    a: A,
+    b: B,
+    c: C,
+    pha: PhantomData<AV>,
+    phb: PhantomData<BV>,
+    phc: PhantomData<CV>,
+}
+
+impl<A, B, C, AV, BV, CV> Parser<Vec<AV>> for SepUntil<A, B, C, AV, BV, CV>
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+{
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+        let mut ri = i.clone();
+        let mut res = Vec::new();
+        match self.c.parse(&ri) {
+            Ok((r, _)) => return Ok((r, res)),
+            Err(_) => {}
+        }
+        loop {
+            ri = match self.a.parse(&ri) {
+                Ok((r, v)) => {
+                    res.push(v);
+                    r
+                }
+                Err(e) => return Err(e),
+            };
+            ri = match self.b.parse(&ri) {
+                Ok((r, _)) => r,
+                Err(e) => match self.c.parse(&ri) {
+                    Ok((r, _)) => return Ok((r, res)),
+                    Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                },
+            }
+        }
+    }
+}
+
+///Allows for better errors looping until a specific finish. It does not return the close or the
+///seperators the
+///close is expected to be some kind of closer like '}'
+///If you need the close you will have to use sep(..).then(..) though the errors will be less
+///nice
+pub fn sep_until<A, B, C, AV, BV, CV>(a: A, b: B, c: C) -> SepUntil<A, B, C, AV, BV, CV>
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+{
+    SepUntil {
+        a,
+        b,
+        c,
+        pha: PhantomData,
+        phb: PhantomData,
+        phc: PhantomData,
     }
 }

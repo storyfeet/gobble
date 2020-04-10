@@ -12,8 +12,10 @@ pub enum ECode {
     Mess(String),
     #[fail(display = "{}::{}", 0, 1)]
     Wrap(&'static str, Box<ParseError>),
-    #[fail(display = "Error ether {}{}", 0, 1)]
+    #[fail(display = "Error {} or {}", 0, 1)]
     Or(Box<ParseError>, Box<ParseError>),
+    #[fail(display = "Expected {}", 0)]
+    Tag(&'static str),
 }
 
 #[derive(Debug, Clone, PartialEq, Fail)]
