@@ -281,6 +281,30 @@ pub fn to_end() -> impl Parser<()> {
     ws(0).then_ig(eoi)
 }
 
+pub struct TakeN {
+    n: usize,
+}
+
+impl Parser<String> for TakeN {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, String> {
+        let mut res = String::new();
+        let mut it = i.clone();
+        for _ in 0..self.n {
+            res.push(it.next().ok_or(it.err_c(ECode::EOF))?);
+        }
+        Ok((it, res))
+    }
+}
+pub fn take_n(n: usize) -> TakeN {
+    TakeN { n }
+}
+
+pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
+    let mut ri = i.clone();
+    let c = ri.next().ok_or(ri.err_c(ECode::EOF))?;
+    Ok((ri, c))
+}
+
 #[cfg(test)]
 pub mod test {
     use super::*;

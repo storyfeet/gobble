@@ -70,6 +70,7 @@ pub mod iter;
 pub mod ptrait;
 pub mod reader;
 pub mod repeater;
+pub mod skip;
 
 pub use combi::*;
 pub use err::*;
@@ -77,6 +78,7 @@ pub use iter::*;
 pub use ptrait::*;
 pub use reader::*;
 pub use repeater::*;
+pub use skip::*;
 
 #[cfg(test)]
 mod test {
