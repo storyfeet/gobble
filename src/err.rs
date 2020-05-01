@@ -16,6 +16,8 @@ pub enum ECode {
     Or(Box<ParseError>, Box<ParseError>),
     #[fail(display = "Expected {}", 0)]
     Tag(&'static str),
+    #[fail(display = "Require {} repeats, got only {} -- {}", 0, 1, 2)]
+    Count(usize, usize, Box<ParseError>),
     #[fail(display = "Unexpected {}", 0)]
     UnexpectedChar(char),
 }

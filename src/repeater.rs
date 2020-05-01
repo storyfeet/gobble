@@ -4,6 +4,38 @@ use crate::ptrait::*;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
+pub struct RepeatN<A: Parser<AV>, AV> {
+    n: usize,
+    a: A,
+    pha: PhantomData<AV>,
+}
+
+impl<A: Parser<AV>, AV> Parser<Vec<AV>> for RepeatN<A, AV> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+        let mut i = it.clone();
+        let mut res = Vec::new();
+        for x in 0..self.n {
+            match self.a.parse(&i) {
+                Ok((it2, pres)) => {
+                    res.push(pres);
+                    i = it2;
+                }
+                Err(e) => return i.err_cr(ECode::Count(self.n, x, Box::new(e))),
+            }
+        }
+        return Ok((i, res));
+    }
+}
+
+pub fn repeat_n<A: Parser<AV>, AV>(a: A, n: usize) -> RepeatN<A, AV> {
+    RepeatN {
+        a,
+        n,
+        pha: PhantomData,
+    }
+}
+
+#[derive(Clone)]
 pub struct Separated<A: Parser<AV>, B: Parser<BV>, AV, BV> {
     a: A,
     b: B,
