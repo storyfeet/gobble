@@ -10,20 +10,77 @@ pub struct RepeatN<A: Parser<AV>, AV> {
     pha: PhantomData<AV>,
 }
 
+fn _repeat_n<'a, A: Parser<AV>, AV>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<AV>> {
+    let mut i = it.clone();
+    let mut res = Vec::new();
+    for x in 0..n {
+        match a.parse(&i) {
+            Ok((it2, pres)) => {
+                res.push(pres);
+                i = it2;
+            }
+            Err(e) => return i.err_cr(ECode::Count(n, x, Box::new(e))),
+        }
+    }
+    return Ok((i, res));
+}
+
 impl<A: Parser<AV>, AV> Parser<Vec<AV>> for RepeatN<A, AV> {
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
-        let mut i = it.clone();
-        let mut res = Vec::new();
-        for x in 0..self.n {
-            match self.a.parse(&i) {
-                Ok((it2, pres)) => {
-                    res.push(pres);
-                    i = it2;
-                }
-                Err(e) => return i.err_cr(ECode::Count(self.n, x, Box::new(e))),
-            }
-        }
-        return Ok((i, res));
+        _repeat_n(it, &self.a, self.n)
+    }
+}
+
+pub struct Reflect<A, B, C, AV, BV, CV> {
+    a: A,
+    b: B,
+    c: C,
+    pha: PhantomData<AV>,
+    phb: PhantomData<BV>,
+    phc: PhantomData<CV>,
+}
+impl<A, B, C, AV, BV, CV> Parser<(Vec<AV>, BV, Vec<CV>)> for Reflect<A, B, C, AV, BV, CV>
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+{
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (Vec<AV>, BV, Vec<CV>)> {
+        let (ni, (va, b)) = _repeat_until(it, &self.a, &self.b)?;
+        let (fi, vc) = _repeat_n(&ni, &self.c, va.len())?;
+        Ok((fi, (va, b, vc)))
+    }
+}
+
+/// A function for making sure number match on both sides of an equals
+///
+/// ```rust
+/// use gobble::*;
+/// let p = reflect(s_tag("("),read_fs(is_alpha_num,1),s_tag(")"));
+///
+/// let (av,b,cv) =p.parse_s("(((help)))").unwrap();
+///
+/// assert_eq!(av,vec!["(","(","("]);
+/// assert_eq!(b,"help".to_string());
+/// assert_eq!(cv,vec![")",")",")"]);
+///
+/// let r2 = p.parse_s("(((no))");
+/// assert!(r2.is_err());
+/// ```
+///
+pub fn reflect<A, B, C, AV, BV, CV>(a: A, b: B, c: C) -> Reflect<A, B, C, AV, BV, CV>
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+{
+    Reflect {
+        a,
+        b,
+        c,
+        pha: PhantomData,
+        phb: PhantomData,
+        phc: PhantomData,
     }
 }
 
@@ -135,6 +192,27 @@ pub fn repeat<A: Parser<AV>, AV>(a: A, min: usize) -> Repeater<A, AV> {
     }
 }
 
+fn _repeat_until<'a, A: Parser<AV>, B: Parser<BV>, AV, BV>(
+    it: &LCChars<'a>,
+    a: &A,
+    b: &B,
+) -> ParseRes<'a, (Vec<AV>, BV)> {
+    let mut ri = it.clone();
+    let mut res = Vec::new();
+    loop {
+        ri = match a.parse(&ri) {
+            Ok((r, v)) => {
+                res.push(v);
+                r
+            }
+            Err(e) => match b.parse(&ri) {
+                Ok((r, bv)) => return Ok((r, (res, bv))),
+                Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+            },
+        }
+    }
+}
+
 pub struct RepUntil<A, B, AV, BV> {
     a: A,
     b: B,
@@ -142,22 +220,9 @@ pub struct RepUntil<A, B, AV, BV> {
     phb: PhantomData<BV>,
 }
 
-impl<A: Parser<AV>, B: Parser<BV>, AV, BV> Parser<Vec<AV>> for RepUntil<A, B, AV, BV> {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
-        let mut ri = i.clone();
-        let mut res = Vec::new();
-        loop {
-            ri = match self.a.parse(&ri) {
-                Ok((r, v)) => {
-                    res.push(v);
-                    r
-                }
-                Err(e) => match self.b.parse(&ri) {
-                    Ok((r, _)) => return Ok((r, res)),
-                    Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
-                },
-            }
-        }
+impl<A: Parser<AV>, B: Parser<BV>, AV, BV> Parser<(Vec<AV>, BV)> for RepUntil<A, B, AV, BV> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, (Vec<AV>, BV)> {
+        _repeat_until(i, &self.a, &self.b)
     }
 }
 
@@ -170,6 +235,10 @@ pub fn repeat_until<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> RepUnti
         pha: PhantomData,
         phb: PhantomData,
     }
+}
+
+pub fn repeat_until_ig<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> impl Parser<Vec<AV>> {
+    repeat_until(a, b).map(|(a, _)| a)
 }
 
 pub struct SepUntil<A, B, C, AV, BV, CV> {
@@ -231,5 +300,22 @@ where
         pha: PhantomData,
         phb: PhantomData,
         phc: PhantomData,
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use crate::ptrait::*;
+    use crate::*;
+    #[test]
+    pub fn test_reflecter() {
+        let (av, b, cv) = reflect(s_tag("("), read_fs(is_alpha_num, 1), s_tag(")"))
+            .parse_s("(((help)))")
+            .unwrap();
+
+        assert_eq!(av, vec!["(", "(", "("]);
+        assert_eq!(b, "help".to_string());
+        assert_eq!(cv, vec![")", ")", ")"]);
     }
 }

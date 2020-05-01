@@ -69,6 +69,9 @@ let fsig = ident()
 
 ## Changelog:
 
+### v 0.1.3:
+Added reflect functionality for when you need to count up and down again
+
 ### v 0.1.2 : 
 Added  ```sep_until(main,sep,close)```
 Added ```repeat_until(main,close)```
