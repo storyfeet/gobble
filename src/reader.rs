@@ -128,17 +128,17 @@ pub fn tag(s: &'static str) -> Tag {
 
 ///Conveniece wrapper for tag, often you want to allow whitespace
 /// around a tag of some kind
-pub fn s_tag(s: &'static str) -> impl Parser<&'static str> + Clone {
+pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
     s_(tag(s))
 }
 
 ///Convenience wrapper to say allow whitespace around whatever I'm parsing.
-pub fn s_<P: Parser<V> + Clone, V: Clone>(p: P) -> impl Parser<V> + Clone {
+pub fn s_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
     crate::combi::wrap(ws(0), p)
 }
 
 ///Take at least n white space characters
-pub fn ws(min: usize) -> impl Parser<()> + Clone {
+pub fn ws(min: usize) -> impl Parser<()> {
     take(
         |c| match c {
             ' ' | '\t' | '\r' => true,
