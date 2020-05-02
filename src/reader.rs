@@ -154,21 +154,49 @@ pub fn ws(min: usize) -> impl Parser<()> {
     )
 }
 
-impl Parser<&'static str> for Tag {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
-        let mut i = i.clone();
-        let mut s_it = self.s.chars();
-        while let Some(c) = s_it.next() {
-            match i.next() {
-                None => return i.err_cr(ECode::Tag(self.s)),
-                Some(ic) => {
-                    if ic != c {
-                        return i.err_cr(ECode::Tag(self.s));
-                    }
+impl Parser<&'static str> for KeyWord {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, &'static str> {
+        let (t2, _) = do_tag(it, self.s)?;
+        match t2.clone().next() {
+            Some(c) => {
+                if is_alpha_num(c) {
+                    t2.err_cr(ECode::Mess(format!("keyword overflows {}--{}", self.s, c)))
+                } else {
+                    Ok((t2, self.s))
+                }
+            }
+            None => Ok((t2, self.s)),
+        }
+    }
+}
+
+pub struct KeyWord {
+    s: &'static str,
+}
+
+pub fn keyword(s: &'static str) -> KeyWord {
+    KeyWord { s }
+}
+
+pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static str> {
+    let mut i = it.clone();
+    let mut s_it = tg.chars();
+    while let Some(c) = s_it.next() {
+        match i.next() {
+            None => return i.err_cr(ECode::Tag(tg)),
+            Some(ic) => {
+                if ic != c {
+                    return i.err_cr(ECode::Tag(tg));
                 }
             }
         }
-        Ok((i, self.s))
+    }
+    Ok((i, tg))
+}
+
+impl Parser<&'static str> for Tag {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
+        do_tag(i, self.s)
     }
 }
 

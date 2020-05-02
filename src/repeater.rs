@@ -200,6 +200,9 @@ fn _repeat_until<'a, A: Parser<AV>, B: Parser<BV>, AV, BV>(
     let mut ri = it.clone();
     let mut res = Vec::new();
     loop {
+        if let Ok((r, v)) = b.parse(&ri) {
+            return Ok((r, (res, v)));
+        }
         ri = match a.parse(&ri) {
             Ok((r, v)) => {
                 res.push(v);
