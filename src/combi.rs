@@ -19,6 +19,24 @@ where
     }
 }
 
+/// returns an option on whether this item was found A common use would be
+/// looking for a minus on the front of a number
+///
+/// ```rust
+/// use gobble::*;
+/// use std::str::FromStr;
+/// let p = maybe(tag("-")).then(read_fs(is_num,1)).try_map(|(m,n)|{
+///     let res:i32 = n.parse().map_err(|e|ECode::SMess("num could not convert to i32"))?;
+///     if m.is_some() {
+///         return Ok(-res )
+///     }
+///     Ok(res)
+/// });
+/// let s = p.parse_s("-34").unwrap();
+/// assert_eq!(s,-34);
+/// let s = p.parse_s("34").unwrap();
+/// assert_eq!(s,34);
+/// ```
 pub fn maybe<P: Parser<V>, V>(p: P) -> Maybe<P> {
     Maybe { p }
 }

@@ -1,6 +1,7 @@
 use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
+use crate::skip::skip_while;
 use std::collections::BTreeMap;
 //use std::iter::FromIterator;
 
@@ -88,6 +89,11 @@ pub fn is_alpha_num(c: char) -> bool {
     is_num(c) || is_alpha(c)
 }
 
+/// ```rust
+/// use gobble::*;
+/// let name = s_(read_fs(is_alpha_num,1)).parse_s("    gobble ").unwrap();
+/// assert_eq!(name,"gobble");
+/// ```
 pub fn read_fs<F>(f: F, min: usize) -> Read<impl Fn(String, char) -> ReadResult<String>>
 where
     F: Fn(char) -> bool,
@@ -139,7 +145,7 @@ pub fn s_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
 
 ///Take at least n white space characters
 pub fn ws(min: usize) -> impl Parser<()> {
-    take(
+    skip_while(
         |c| match c {
             ' ' | '\t' | '\r' => true,
             _ => false,

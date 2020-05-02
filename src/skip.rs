@@ -8,6 +8,12 @@ pub struct Skip<F> {
     min: usize,
 }
 
+/// ```rust
+/// use gobble::*;
+/// let p = skip_while(|x|x == '$',0).ig_then(read_fs(is_alpha,1));
+/// let s =p.parse_s("$$$$$$$hello").unwrap();
+/// assert_eq!(s,"hello");
+/// ```
 pub fn skip_while<F: Fn(char) -> bool>(f: F, min: usize) -> Skip<F> {
     Skip { f, min }
 }
