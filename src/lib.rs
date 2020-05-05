@@ -65,6 +65,7 @@
 //!  ```
 
 pub mod combi;
+pub mod common;
 pub mod err;
 pub mod iter;
 pub mod ptrait;
@@ -73,6 +74,7 @@ pub mod repeater;
 pub mod skip;
 
 pub use combi::*;
+pub use common::*;
 pub use err::*;
 pub use iter::*;
 pub use ptrait::*;
