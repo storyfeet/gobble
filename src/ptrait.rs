@@ -1,5 +1,6 @@
 use crate::err::{ECode, ParseError};
 use crate::iter::LCChars;
+use std::cmp::Ordering;
 use std::marker::PhantomData;
 
 pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
@@ -148,7 +149,11 @@ where
             Ok((r, v)) => Ok((r, v)),
             Err(e) => match self.b.parse(i) {
                 Ok((r, v)) => Ok((r, v)),
-                Err(e2) => i.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                Err(e2) => match e.partial_cmp(&e2) {
+                    Some(Ordering::Equal) | None => i.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                    Some(Ordering::Less) => Err(e2),
+                    Some(Ordering::Greater) => Err(e),
+                },
             },
         }
     }

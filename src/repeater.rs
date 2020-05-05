@@ -309,7 +309,7 @@ where
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::ptrait::*;
+    //use crate::ptrait::*;
     use crate::*;
     #[test]
     pub fn test_reflecter() {

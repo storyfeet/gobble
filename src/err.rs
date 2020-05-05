@@ -1,4 +1,5 @@
 use failure_derive::*;
+use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq, Fail)]
 pub enum ECode {
@@ -14,7 +15,7 @@ pub enum ECode {
     Wrap(&'static str, Box<ParseError>),
     #[fail(display = "Error {} or {}", 0, 1)]
     Or(Box<ParseError>, Box<ParseError>),
-    #[fail(display = "Expected {}", 0)]
+    #[fail(display = "Expected {:?}", 0)]
     Tag(&'static str),
     #[fail(display = "Require {} repeats, got only {} -- {}", 0, 1, 2)]
     Count(usize, usize, Box<ParseError>),
@@ -23,7 +24,7 @@ pub enum ECode {
 }
 
 #[derive(Debug, Clone, PartialEq, Fail)]
-#[fail(display = "Parse Error on line {} : {}", code, line)]
+#[fail(display = "Parse Error at {},{}: {}", line, col, code)]
 pub struct ParseError {
     pub code: ECode,
     pub line: u64,
@@ -40,5 +41,14 @@ impl ParseError {
     }
     pub fn code(code: ECode, line: u64, col: u64) -> ParseError {
         ParseError { code, line, col }
+    }
+}
+
+impl PartialOrd for ParseError {
+    fn partial_cmp(&self, b: &Self) -> Option<Ordering> {
+        if self.line == b.line {
+            return self.col.partial_cmp(&b.col);
+        }
+        self.line.partial_cmp(&self.line)
     }
 }
