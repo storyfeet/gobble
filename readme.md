@@ -69,8 +69,10 @@ let fsig = ident()
 
 ## Changelog:
 
-### v 0.1.4: --wip
+### v 0.1.4: 
 Added keyword to make sure there are no alpha num characters on the end of the keyword
+Fixed the error display method to make them easier to read.
+added a 'common' module and ```common_int``` and ```common_bool``` parsers
 
 ### v 0.1.3:
 Added reflect functionality for when you need to count up and down again
