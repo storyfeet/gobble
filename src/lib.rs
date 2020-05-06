@@ -72,6 +72,7 @@ pub mod ptrait;
 pub mod reader;
 pub mod repeater;
 pub mod skip;
+pub mod tuple;
 
 pub use combi::*;
 pub use common::*;
@@ -81,6 +82,7 @@ pub use ptrait::*;
 pub use reader::*;
 pub use repeater::*;
 pub use skip::*;
+pub use tuple::*;
 
 #[cfg(test)]
 mod test {
