@@ -140,7 +140,7 @@ pub mod test {
 
     #[test]
     pub fn parse_floats() {
-        let r = common_float.parse_s("32").unwrap();
+        let r = common_float.parse_s("32.").unwrap();
         assert_eq!(r, 32.);
         let r = common_float.parse_s("-23.4").unwrap();
         assert_eq!(r, -23.4);
@@ -148,5 +148,6 @@ pub mod test {
         assert_eq!(r, -2340.);
         let r = common_float.parse_s("123.4e-2").unwrap();
         assert_eq!(r, 1.234);
+        assert!(common_float.parse_s("123").is_err());
     }
 }
