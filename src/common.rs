@@ -61,12 +61,12 @@ pub fn common_bool<'a>(it: &LCChars<'a>) -> ParseRes<'a, bool> {
         .parse(it)
 }
 
-pub fn dot_part<'a>(i: &LCChars<'a>) -> (LCChars<'a>, f64) {
+pub fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
     let mut res = 0.;
     let mut exp = 0.1;
     let mut it = i.clone();
     if it.next() != Some('.') {
-        return (i.clone(), 0.);
+        return i.err_r("no_dot_part");
     }
     loop {
         let it2 = it.clone();
@@ -76,7 +76,7 @@ pub fn dot_part<'a>(i: &LCChars<'a>) -> (LCChars<'a>, f64) {
                 res += (((v as i64) as f64) - 48.0) * exp;
                 exp *= 0.1;
             }
-            _ => return (it2, res),
+            _ => return Ok((it2, res)),
         }
     }
 }
@@ -117,7 +117,7 @@ pub fn common_float<'a>(it: &LCChars<'a>) -> ParseRes<'a, f64> {
     let it3 = it2.clone();
     let mut nf = n as f64;
 
-    let (it3, dp) = dot_part(&it3);
+    let (it3, dp) = dot_part(&it3)?;
     nf += dp * minus;
     do_exponent(nf, &it3)
 }
