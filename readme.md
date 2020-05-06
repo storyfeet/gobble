@@ -69,6 +69,9 @@ let fsig = ident()
 
 ## Changelog:
 
+### v 0.1.5 -- WIP:
+Added common_float method
+
 ### v 0.1.4: 
 Added keyword to make sure there are no alpha num characters on the end of the keyword
 Fixed the error display method to make them easier to read.
