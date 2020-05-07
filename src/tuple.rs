@@ -42,25 +42,3 @@ where
         Ok((it5, (av, bv, cv, dv)))
     }
 }
-
-trait TupAB<P, AV, BV, FA>
-where
-    P: Parser<(AV, BV)>,
-    FA: Fn((AV, BV)) -> AV,
-{
-    fn a(self) -> Map<P, (AV, BV), AV, FA>;
-}
-
-fn t2_a<A, B>((a, b): (A, B)) -> A {
-    a
-}
-
-impl<P, AV, BV, FA> TupAB<P, AV, BV, FA> for P
-where
-    P: Parser<(AV, BV)>,
-    FA: Fn((AV, BV)) -> AV,
-{
-    fn a(self) -> Map<P, (AV, BV), AV, FA> {
-        self.map(t2_a::<AV, BV>)
-    }
-}
