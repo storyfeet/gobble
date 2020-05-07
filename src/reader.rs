@@ -3,6 +3,7 @@ use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 use crate::skip::skip_while;
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 //use std::iter::FromIterator;
 
 #[derive(Clone)]
@@ -342,6 +343,25 @@ pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
     let mut ri = i.clone();
     let c = ri.next().ok_or(ri.err_c(ECode::EOF))?;
     Ok((ri, c))
+}
+
+pub struct Peek<P: Parser<V>, V> {
+    p: P,
+    phv: PhantomData<V>,
+}
+
+impl<P: Parser<V>, V> Parser<V> for Peek<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+        let (_, v) = self.p.parse(it)?;
+        Ok((it.clone(), v))
+    }
+}
+
+pub fn peek<P: Parser<V>, V>(p: P) -> Peek<P, V> {
+    Peek {
+        p,
+        phv: PhantomData,
+    }
 }
 
 #[cfg(test)]
