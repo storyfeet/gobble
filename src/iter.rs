@@ -4,8 +4,8 @@ use std::str::Chars;
 #[derive(Clone, Debug)]
 pub struct LCChars<'a> {
     iter: Chars<'a>,
-    l: u64,
-    c: u64,
+    l: usize,
+    c: usize,
 }
 
 impl<'a> LCChars<'a> {
@@ -37,6 +37,10 @@ impl<'a> LCChars<'a> {
     pub fn err_cr<V>(&self, c: ECode) -> Result<V, ParseError> {
         //println!("err_cr {} {} ", self.l, self.c);
         Err(ParseError::code(c, self.l, self.c))
+    }
+
+    pub fn lc(&self) -> (usize, usize) {
+        (self.l, self.c)
     }
 }
 

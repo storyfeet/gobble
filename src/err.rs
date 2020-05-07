@@ -27,19 +27,19 @@ pub enum ECode {
 #[fail(display = "Parse Error at {},{}: {}", line, col, code)]
 pub struct ParseError {
     pub code: ECode,
-    pub line: u64,
-    pub col: u64,
+    pub line: usize,
+    pub col: usize,
 }
 
 impl ParseError {
-    pub fn new(s: &'static str, line: u64, col: u64) -> ParseError {
+    pub fn new(s: &'static str, line: usize, col: usize) -> ParseError {
         ParseError {
             code: ECode::SMess(s),
             line,
             col,
         }
     }
-    pub fn code(code: ECode, line: u64, col: u64) -> ParseError {
+    pub fn code(code: ECode, line: usize, col: usize) -> ParseError {
         ParseError { code, line, col }
     }
 }
