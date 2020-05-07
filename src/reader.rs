@@ -138,6 +138,10 @@ pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
     s_(tag(s))
 }
 
+pub fn ws_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
+    ws(0).ig_then(p)
+}
+
 ///Convenience wrapper to say allow whitespace around whatever I'm parsing.
 pub fn s_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
     crate::combi::wrap(ws(0), p)

@@ -2,6 +2,33 @@ use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::reader::*;
+use std::convert::TryFrom;
+
+pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
+    let mut added = false;
+    let mut res: usize = 0;
+    let mut it = it.clone();
+    loop {
+        let it2 = it.clone();
+        match it.next() {
+            Some(v) if is_num(v) => {
+                added = true;
+                res = res
+                    .checked_mul(10)
+                    .ok_or(it.err("Num too big"))?
+                    .checked_add(v as usize - '0' as usize)
+                    .ok_or(it.err("Num too big"))?;
+            }
+            Some('_') => {}
+            _ => {
+                if added {
+                    return Ok((it2, res));
+                }
+                return it.err_r("No numerical digits");
+            }
+        }
+    }
+}
 
 /// A function for parsing integers
 /// ```
@@ -12,41 +39,16 @@ use crate::reader::*;
 ///
 pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
     //TODO add and mul without panic
-    let mut added = false;
-    let mut it = it.clone();
-    let (minus, mut res) = match it.next() {
-        Some('-') => (-1, 0),
-        Some(v) if v >= '0' && v <= '9' => {
-            added = true;
-            (1, (v as isize - '0' as isize))
-        }
+    let mut it2 = it.clone();
+    let (minus, it2) = match it2.next() {
+        Some('-') => (-1, it2),
+        Some(v) if is_num(v) => (1, it.clone()),
         _ => return it.err_cr(ECode::SMess("Not an int")),
     };
 
-    let mut it2 = it.clone();
-    loop {
-        match it.next() {
-            Some(v) if v >= '0' && v <= '9' => {
-                added = true;
-                res = res
-                    .checked_mul(10)
-                    .ok_or(it.err("Num too big"))?
-                    .checked_add(v as isize - '0' as isize)
-                    .ok_or(it.err("Num too big"))?;
-                it2 = it.clone();
-            }
-            Some('_') => {
-                it2 = it.clone();
-            }
-            _ => {
-                if added {
-                    return Ok((it2, minus * res));
-                } else {
-                    return it.err_r("Expected int, got '-'");
-                }
-            }
-        }
-    }
+    let (it3, n) = common_uint(&it2)?;
+    let n: isize = isize::try_from(n).map_err(|_| it3.err("Int Too Big"))?;
+    Ok((it3, n * minus))
 }
 
 /// ```
