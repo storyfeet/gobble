@@ -121,3 +121,14 @@ where
 {
     a.or(b).or(c).or(d).or(e)
 }
+pub fn or6<A, B, C, D, E, F, V>(a: A, b: B, c: C, d: D, e: E, f: F) -> impl Parser<V>
+where
+    A: Parser<V>,
+    B: Parser<V>,
+    C: Parser<V>,
+    D: Parser<V>,
+    E: Parser<V>,
+    F: Parser<V>,
+{
+    a.or(b).or(c).or(d).or(e).or(f)
+}
