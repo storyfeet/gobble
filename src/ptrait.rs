@@ -75,6 +75,12 @@ impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
     }
 }
 
+impl Parser<&'static str> for &'static str {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
+        crate::reader::do_tag(i, self)
+    }
+}
+
 #[derive(Clone)]
 pub struct Then<A, B> {
     one: A,
@@ -189,5 +195,17 @@ impl<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> Parser<B> for TryMap<A
             Ok(v2) => Ok((ri, v2)),
             Err(e) => ri.err_cr(e),
         }
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use crate::common::*;
+    #[test]
+    fn test_strs_can_be_parsers() {
+        let p = "(((".ig_then(common_int);
+        let n = p.parse_s("(((32").unwrap();
+        assert_eq!(n, 32);
     }
 }

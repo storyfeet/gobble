@@ -11,51 +11,36 @@ pub enum Op {
 
 #[derive(Debug)]
 pub enum Expr {
-    Val(i32),
+    Val(isize),
     Parenth(Box<Expr>),
     Oper(Op, Box<Expr>, Box<Expr>),
     //Bracket(Box<Expr>),
 }
 
-fn parse_op<'a>(i: &LCChars<'a>) -> ParseRes<'a, Op> {
-    let parser = ws(0)
-        .ig_then(tag("+").or(tag("-")).or(tag("*")).or(tag("/")))
-        .then_ig(ws(0));
-    let (ri, c) = parser.parse(i)?;
-    let rop = match c {
-        "+" => Op::Add,
-        "-" => Op::Sub,
-        "*" => Op::Mul,
-        "/" => Op::Div,
-        _ => return i.err_cr(ECode::Never("Op not in list")),
-    };
-    Ok((ri, rop))
+fn parse_op() -> impl Parser<Op> {
+    s_(or4("+", "-", "*", "/")).try_map(|o| match o {
+        "+" => Ok(Op::Add),
+        "-" => Ok(Op::Sub),
+        "*" => Ok(Op::Mul),
+        "/" => Ok(Op::Div),
+        _ => Err(ECode::Never("Op not in list")),
+    })
 }
 
 fn parse_expr_l<'a>(i: &LCChars<'a>) -> ParseRes<'a, Expr> {
-    if let Ok((ir, e)) = tag("(").ig_then(parse_expr).then_ig(tag(")")).parse(i) {
-        return Ok((ir, Expr::Parenth(Box::new(e))));
-    }
-    if let Ok((ir, (neg, v))) = ws(0)
-        .ig_then(maybe(tag("-")))
-        .then(read_fs(is_num, 1))
-        .parse(i)
-    {
-        let mut n: i32 = v.parse().unwrap();
-        if neg.is_some() {
-            n = -n;
-        }
-        return Ok((ir, Expr::Val(n)));
-    }
-    i.err_r("Expr Left Fail")
+    let p = or(
+        sel3_b("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
+        common_int.map(|i| Expr::Val(i)),
+    );
+    p.parse(i)
 }
 
 pub fn parse_expr<'a>(i: &LCChars<'a>) -> ParseRes<'a, Expr> {
-    let (ir, l) = parse_expr_l.parse(i)?;
-    if let Ok((ir, (o, v2))) = parse_op.then(parse_expr).parse(&ir) {
-        return Ok((ir, Expr::Oper(o, Box::new(l), Box::new(v2))));
-    }
-    Ok((ir, l))
+    let p = (parse_expr_l, maybe((parse_op(), parse_expr))).map(|(l, opt)| match opt {
+        Some((oper, r)) => Expr::Oper(oper, Box::new(l), Box::new(r)),
+        None => l,
+    });
+    p.parse(i)
 }
 
 fn main() -> Result<(), std::io::Error> {

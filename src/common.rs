@@ -4,7 +4,7 @@ use crate::ptrait::*;
 use crate::reader::*;
 
 /// A function for parsing integers
-/// ```ignore
+/// ```
 /// use gobble::*;
 /// let r = common_int.parse_s("32").unwrap();
 /// assert_eq!(r,32);
@@ -49,7 +49,7 @@ pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
     }
 }
 
-/// ```ignore
+/// ```
 /// use gobble::*;
 /// let v = common_bool.parse_s("true").unwrap();
 /// assert!(v);
@@ -100,9 +100,9 @@ fn do_exponent<'a>(mut n: f64, i: &LCChars<'a>) -> ParseRes<'a, f64> {
     Ok((it2, n))
 }
 
-/// ```rust ignore
+/// ```rust
 /// use gobble::*;
-/// let r = common_float.parse_s("32").unwrap();
+/// let r = common_float.parse_s("32.").unwrap();
 /// assert_eq!(r, 32.);
 /// let r = common_float.parse_s("-23.4").unwrap();
 /// assert_eq!(r, -23.4);
@@ -135,7 +135,8 @@ pub mod test {
         assert_eq!(r, 34234);
         assert!(common_int
             .parse_s("45654323456765432345676543212345654")
-            .is_err())
+            .is_err());
+        assert!(common_int.parse_s("   45").is_err());
     }
 
     #[test]
