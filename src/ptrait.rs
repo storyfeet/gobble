@@ -81,6 +81,16 @@ impl Parser<&'static str> for &'static str {
     }
 }
 
+impl Parser<char> for char {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, char> {
+        let mut i2 = i.clone();
+        match i2.next() {
+            Some(c) if c == *self => Ok((i2, *self)),
+            v => i2.err_cr(ECode::Char(*self, v)),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Then<A, B> {
     one: A,
@@ -153,6 +163,7 @@ where
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V> {
         match self.a.parse(i) {
             Ok((r, v)) => Ok((r, v)),
+            Err(e) if e.is_break() => Err(e),
             Err(e) => match self.b.parse(i) {
                 Ok((r, v)) => Ok((r, v)),
                 Err(e2) => match e.partial_cmp(&e2) {
