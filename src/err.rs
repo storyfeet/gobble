@@ -19,6 +19,8 @@ pub enum ECode {
     Or(Box<ParseError>, Box<ParseError>),
     #[fail(display = "Expected {}, got {:?}", 0, 1)]
     Char(char, Option<char>),
+    #[fail(display = "Expected a char in {:?}, got {:?}", 0, 1)]
+    CharInStr(&'static str, char),
     #[fail(display = "Expected {:?}", 0)]
     Tag(&'static str),
     #[fail(display = "Require {} repeats, got only {} -- {}", 0, 1, 2)]

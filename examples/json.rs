@@ -47,15 +47,14 @@ pub fn js_char() -> impl Parser<char> {
                 .map_err(|_| ECode::SMess("could not get char from unicode").brk())?;
             std::char::from_u32(n).ok_or(ECode::SMess("Could not get char from u32").brk())
         }),
-        "\\".ig_then(or6('\"', '/', '\\', 'b', 'f', 'r'.or('n').or('t')))
-            .map(|c| match c {
-                'b' => '\u{08}',
-                'f' => '\u{0C}',
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                v => v,
-            }),
+        "\\".ig_then(one_char("\"/\\bfrnt")).map(|c| match c {
+            'b' => '\u{08}',
+            'f' => '\u{0C}',
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            v => v,
+        }),
         take_char,
     )
 }

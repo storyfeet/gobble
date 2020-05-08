@@ -345,6 +345,31 @@ pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
     Ok((ri, c))
 }
 
+pub fn do_one_char<'a>(i: &LCChars<'a>, s: &'static str) -> ParseRes<'a, char> {
+    let mut i2 = i.clone();
+    let ic = i2.next().ok_or(i2.err_c(ECode::EOF))?;
+    for sc in s.chars() {
+        if ic == sc {
+            return Ok((i2, ic));
+        }
+    }
+    i2.err_cr(ECode::CharInStr(s, ic))
+}
+
+pub struct OneChar {
+    s: &'static str,
+}
+
+impl Parser<char> for OneChar {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, char> {
+        do_one_char(it, self.s)
+    }
+}
+
+pub fn one_char(s: &'static str) -> OneChar {
+    OneChar { s }
+}
+
 pub struct Peek<P: Parser<V>, V> {
     p: P,
     phv: PhantomData<V>,
