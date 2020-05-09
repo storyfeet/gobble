@@ -83,7 +83,7 @@ This does of course create a problem for recursive types such as Json, as the st
 
 the solution is to write the definition of one part of your recursive loop yourself, but you can still use the other tricks to build it.
 
-```
+```rust
 // An Excerpt from example/json.rs 
 use gobble::*;
 use examples::json::{json_string,wsn_,map_item}; //ish
@@ -115,6 +115,9 @@ pub fn json_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
 ```
 
 ## Changelog:
+
+### v 0.1.6:
+Added line_col wrappper to get the line and column of the result
 
 ### v 0.1.5 :
 Added common_float method

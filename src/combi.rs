@@ -74,3 +74,19 @@ where
         phb: PhantomData,
     }
 }
+
+pub struct LineCol<P: Parser<V>, V> {
+    p: P,
+    v: PhantomData<V>,
+}
+
+impl<P: Parser<V>, V> Parser<(usize, usize, V)> for LineCol<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (usize, usize, V)> {
+        let (l, c) = it.lc();
+        self.p.parse(it).map(|(i, v)| (i, (l, c, v)))
+    }
+}
+
+pub fn line_col<P: Parser<V>, V>(p: P) -> LineCol<P, V> {
+    LineCol { p, v: PhantomData }
+}
