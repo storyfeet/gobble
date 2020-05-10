@@ -257,17 +257,10 @@ impl Parser<String> for Escape {
         i.err_r("un closed escape")
     }
 }
-
-/// An commonly used form for quoted strings
-pub fn common_str() -> impl Parser<String> {
-    tag("\"").ig_then(
-        esc('\"', '\\')
-            .e_map('t', '\t')
-            .e_map('n', '\n')
-            .e_map('r', '\r'),
-    )
-}
-
+#[deprecated(
+    since = "0.1.7",
+    note = "see common::common_str() for how to handle escapes"
+)]
 /// Build an escaper - used to complete a string, you will already have called checked for the
 /// opening part of the string
 pub fn esc(close: char, esc: char) -> Escape {
@@ -408,6 +401,58 @@ pub fn peek<P: Parser<V>, V>(p: P) -> Peek<P, V> {
     Peek {
         p,
         phv: PhantomData,
+    }
+}
+
+pub struct CharF<F: Fn(char) -> bool> {
+    f: F,
+}
+
+impl<F: Fn(char) -> bool> Parser<char> for CharF<F> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, char> {
+        let mut i2 = i.clone();
+        match i2.next() {
+            Some(c) if (self.f)(c) => Ok((i2, c)),
+            v => i2.err_cr(ECode::Char('?', v)),
+        }
+    }
+}
+
+pub fn char_f<F: Fn(char) -> bool>(f: F) -> CharF<F> {
+    CharF { f }
+}
+
+pub struct CharsUntil<A: Parser<char>, B: Parser<BV>, BV> {
+    a: A,
+    b: B,
+    phb: PhantomData<BV>,
+}
+
+impl<A: Parser<char>, B: Parser<BV>, BV> Parser<String> for CharsUntil<A, B, BV> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        let mut res = String::new();
+        let mut it = it.clone();
+        loop {
+            //let it2 = it.clone();
+            if let Ok((i, _)) = self.b.parse(&it) {
+                return Ok((i, res));
+            }
+            it = match self.a.parse(&it) {
+                Ok((i, c)) => {
+                    res.push(c);
+                    i
+                }
+                Err(e) => return Err(e),
+            };
+        }
+    }
+}
+
+pub fn chars_until<A: Parser<char>, B: Parser<BV>, BV>(a: A, b: B) -> CharsUntil<A, B, BV> {
+    CharsUntil {
+        a,
+        b,
+        phb: PhantomData,
     }
 }
 

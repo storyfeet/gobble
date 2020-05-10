@@ -4,6 +4,21 @@ use crate::ptrait::*;
 use crate::reader::*;
 use std::convert::TryFrom;
 
+/// An commonly used form for quoted strings
+pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
+    /*('"', repeat_until(or(
+    read_fs(char_not("\\\""),
+
+    ),'"')*/
+    '"'.ig_then(chars_until(or("\t".as('\t')
+    tag("\"").ig_then(
+        esc('\"', '\\')
+            .e_map('t', '\t')
+            .e_map('n', '\n')
+            .e_map('r', '\r'),
+    )
+}
+
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
     let mut added = false;
     let mut res: usize = 0;

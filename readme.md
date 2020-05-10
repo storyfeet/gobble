@@ -117,11 +117,13 @@ pub fn json_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
 ## Changelog:
 ### v 0.1.7:
 * ```is_alpha``` and ```is_alpha_num``` no longer return true for '_'.
+* ```is_alpha_u``` and ```is_alpha_num_u``` do what they used to do.
 * Added combinators to the bool char options to make it easier to check a string contains a char as part of the read_fs method"
 
 
 ### v 0.1.6:
 * Added line_col wrappper to get the line and column of the result
+* Added ```one_char(&str)```  Parser to check the next char is a member of that.
 
 ### v 0.1.5 :
 * Added common_float method
