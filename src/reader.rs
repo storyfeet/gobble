@@ -79,11 +79,25 @@ where
     }
 }
 
+pub fn or_char<A: Fn(char) -> bool, B: Fn(char) -> bool>(a: A, b: B) -> impl Fn(char) -> bool {
+    move |c| a(c) || b(c)
+}
+
 pub fn is_num(c: char) -> bool {
     c >= '0' && c <= '9'
 }
+
+//Notes, this used to allow underscore now it doesnt
 pub fn is_alpha(c: char) -> bool {
-    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'
+    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+}
+
+pub fn char_in(s: &'static str) -> impl Fn(char) -> bool {
+    move |c| s.contains(c)
+}
+
+pub fn char_not(s: &'static str) -> impl Fn(char) -> bool {
+    move |c| !s.contains(c)
 }
 
 pub fn is_alpha_num(c: char) -> bool {
