@@ -92,6 +92,10 @@ pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
 
+pub fn is_alpha_u(c: char) -> bool {
+    is_alpha(c) || c == '_'
+}
+
 pub fn char_in(s: &'static str) -> impl Fn(char) -> bool {
     move |c| s.contains(c)
 }
@@ -102,6 +106,10 @@ pub fn char_not(s: &'static str) -> impl Fn(char) -> bool {
 
 pub fn is_alpha_num(c: char) -> bool {
     is_num(c) || is_alpha(c)
+}
+
+pub fn is_alpha_num_u(c: char) -> bool {
+    is_alpha_num(c) || c == '_'
 }
 
 /// ```rust

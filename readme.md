@@ -75,13 +75,13 @@ let fsig = ident()
 The function combinators work by returning a Struct that is generically typed to match the parsers it is given.
 for example if 'a:A' and 'b:B' are parsers that both return a value of type 'V'. ```a.or(b)``` will return an ```Or<A,B,V>{a,b}```
 
-```Or<A,B,V> implements ```Parser<V>```, and will try a first, but then b second if a fails
+```Or<A,B,V>``` implements ```Parser<V>```, and will try a first, but then b second if a fails
 
-This means that writing a.or(b).or(c).or(d) Will return a Fixed size struct ```Or<Or<Or<A,B,V>,C>,D>```  It's not pretty but the compiler checks it an makes sure it works.
+This means that writing a.or(b).or(c).or(d) Will return a Fixed size struct ```Or<Or<Or<A,B,V>,C,V>,D,V>```  It's not pretty but the compiler checks it an makes sure it works.
 
 This does of course create a problem for recursive types such as Json, as the structure created would be an infinite size.
 
-the solution is to write the definition of one part of your recursive loop yourself, but you can still use the other tricks to build it.
+The solution is to write the definition of one part of your recursive loop yourself, but you can still use the other tricks to build it.
 
 ```rust
 // An Excerpt from example/json.rs 
@@ -115,30 +115,34 @@ pub fn json_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
 ```
 
 ## Changelog:
+### v 0.1.7:
+* ```is_alpha``` and ```is_alpha_num``` no longer return true for '_'.
+* Added combinators to the bool char options to make it easier to check a string contains a char as part of the read_fs method"
+
 
 ### v 0.1.6:
-Added line_col wrappper to get the line and column of the result
+* Added line_col wrappper to get the line and column of the result
 
 ### v 0.1.5 :
-Added common_float method
-impl Parser for char and &'static str
-made tuples work as combinator parsers
+* Added common_float method
+* impl Parser for char and &'static str
+* made tuples work as combinator parsers
 
 
 ### v 0.1.4: 
-Added keyword to make sure there are no alpha num characters on the end of the keyword
-Fixed the error display method to make them easier to read.
-added a 'common' module and ```common_int``` and ```common_bool``` parsers
+* Added keyword to make sure there are no alpha num characters on the end of the keyword
+* Fixed the error display method to make them easier to read.
+* added a 'common' module and ```common_int``` and ```common_bool``` parsers
 
 ### v 0.1.3:
-Added reflect functionality for when you need to count up and down again
+* Added reflect functionality for when you need to count up and down again
 
 ### v 0.1.2 : 
-Added  ```sep_until(main,sep,close)```
-Added ```repeat_until(main,close)```
-Fixed Or Error to include both errors to make it easier to find the problems in branching iterators
+* Added  ```sep_until(main,sep,close)```
+* Added ```repeat_until(main,close)```
+* Fixed Or Error to include both errors to make it easier to find the problems in branching iterators
 
 ### v 0.1.1 :
 
-Added ```eoi``` and ```to_end()``` functions for making sure you have the end of the input;
-Also added ```common_str()``` for getting the most common form of string
+* Added ```eoi``` and ```to_end()``` functions for making sure you have the end of the input;
+* Added ```common_str()``` for getting the most common form of string
