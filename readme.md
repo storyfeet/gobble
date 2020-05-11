@@ -2,7 +2,9 @@
 
 ## A parser for strings in Rust that is just Code. No Macros, and easy to use generics
 
-This parser exists take some of the generics and macros pain out of parsing.  It is surprisingly declarative for something that is just a bunch of ```then()```s and ```or()```s
+This parser exists take some of the generics and macros pain out of parsing.  It is surprisingly declarative, and the final code looks a lot like a PEG with a few ```map``` functions added
+
+## The Parse Trait
 
 To Gobble : A parser is anything that implements it's Parser Trait
 
@@ -23,19 +25,35 @@ Parser is already implemented for :
 * Any function matching ```Fn<'a>(&LCChars<'a>)->ParseRes<'a,V>```
 * ```&'static str``` if matched exactly returns itself.
 * ```char``` if matched exactly returns itself.
-* Tuples of Parsers up to 6 items. Matching each member in turn, and returning a tuple of the results. (if you need more than 6 you can always nest them)
+* Tuples of Parsers up to 6 items. Matching each member in turn, and returning a tuple of the results. (if you need more than 6 you can always nest them) (a,b,c) is equivilent to a.then(b).then(c)
 
 The clearest example is in examples/json.rs 
 
-Mostly you will be combining functions with ```then()```, ```ig_then()```, ```then_ig()```, and ```or()```
+Mostly you will be combining functions with ```ig_then()```, ```then_ig()```, and ```or()```, or by putting them in tuples.
+Then if necessary mapping the results to fit the desired struct or enum result
+
+## The CharBool Trait
+
+The char bool traits creates tools for checking if a char fit's in a string:
+```rust 
+pub trait CharBool{
+    fn char_bool(c:char)->bool;
+}
+```
+it is implemented for:
+* char  -- if the chars match
+* &'static str -- if the str contains the char
+* Every Fn(char)->bool
+* Some Zero Size structs "Alpha", "NumDigit",
+* any tuple of the above up to 6 members. -- if any of its members pass
 
 ## Example 1:
 
 ```rust
 use gobble::*;
 pub fn ident()=>impl Parser<String>{
-    read_fs(is_alpha,1)
-        .then(read_fs(is_alpha_num,0))
+
+    Alpha.min(1).then((Alpha,NumDigit,'_').any())
         //map converts the result to the correct type for the function
         .map(|(mut a, b)| {
             a.push_str(&b);
@@ -115,10 +133,10 @@ pub fn json_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
 ```
 
 ## Changelog:
-### v 0.1.7:
-* ```is_alpha``` and ```is_alpha_num``` no longer return true for '_'.
-* ```is_alpha_u``` and ```is_alpha_num_u``` do what they used to do.
-* Added combinators to the bool char options to make it easier to check a string contains a char as part of the read_fs method"
+### v 0.2.0 -- Major update:
+* created a new trait called CharBool
+* removed is_alpha_num
+* Added Character readers, that take use the CharBool trait to get what they want
 
 
 ### v 0.1.6:
