@@ -56,7 +56,7 @@ where
 ///
 /// ```rust
 /// use gobble::*;
-/// let p = reflect(s_tag("("),read_fs(is_alpha_num,1),s_tag(")"));
+/// let p = reflect(s_tag("("),read_fs(Alpha,1),s_tag(")"));
 ///
 /// let (av,b,cv) =p.parse_s("(((help)))").unwrap();
 ///
@@ -313,7 +313,7 @@ pub mod test {
     use crate::*;
     #[test]
     pub fn test_reflecter() {
-        let (av, b, cv) = reflect(s_tag("("), read_fs(is_alpha_num, 1), s_tag(")"))
+        let (av, b, cv) = reflect(s_tag("("), read_fs((Alpha, NumDigit), 1), s_tag(")"))
             .parse_s("(((help)))")
             .unwrap();
 

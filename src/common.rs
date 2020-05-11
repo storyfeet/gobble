@@ -1,3 +1,4 @@
+use crate::chars::*;
 use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
@@ -10,13 +11,17 @@ pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
     read_fs(char_not("\\\""),
 
     ),'"')*/
-    '"'.ig_then(chars_until(or("\t".as('\t')
-    tag("\"").ig_then(
-        esc('\"', '\\')
-            .e_map('t', '\t')
-            .e_map('n', '\n')
-            .e_map('r', '\r'),
-    )
+    //'"'.ig_then(chars_until(or("\t".as('\t')
+
+    
+    tag("\"")
+        .ig_then(
+            esc('\"', '\\')
+                .e_map('t', '\t')
+                .e_map('n', '\n')
+                .e_map('r', '\r'),
+        )
+        .parse(it)
 }
 
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {

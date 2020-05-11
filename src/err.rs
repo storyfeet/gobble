@@ -27,6 +27,8 @@ pub enum ECode {
     Count(usize, usize, Box<ParseError>),
     #[fail(display = "Unexpected {}", 0)]
     UnexpectedChar(char),
+    #[fail(display = "Char Expected {:?} - got{:?}", 0, 1)]
+    CharExpected(crate::chars::Expected, Option<char>),
 }
 
 impl ECode {

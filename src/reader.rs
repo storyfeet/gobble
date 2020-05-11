@@ -1,3 +1,4 @@
+use crate::chars::*;
 use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
@@ -83,46 +84,19 @@ pub fn or_char<A: Fn(char) -> bool, B: Fn(char) -> bool>(a: A, b: B) -> impl Fn(
     move |c| a(c) || b(c)
 }
 
-pub fn is_num(c: char) -> bool {
-    c >= '0' && c <= '9'
-}
-
-//Notes, this used to allow underscore now it doesnt
-pub fn is_alpha(c: char) -> bool {
-    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-}
-
-pub fn is_alpha_u(c: char) -> bool {
-    is_alpha(c) || c == '_'
-}
-
-pub fn char_in(s: &'static str) -> impl Fn(char) -> bool {
-    move |c| s.contains(c)
-}
-
-pub fn char_not(s: &'static str) -> impl Fn(char) -> bool {
-    move |c| !s.contains(c)
-}
-
-pub fn is_alpha_num(c: char) -> bool {
-    is_num(c) || is_alpha(c)
-}
-
-pub fn is_alpha_num_u(c: char) -> bool {
-    is_alpha_num(c) || c == '_'
-}
-
 /// ```rust
 /// use gobble::*;
-/// let name = s_(read_fs(is_alpha_num,1)).parse_s("    gobble ").unwrap();
+/// let name = s_(read_fs((Alpha,NumDigit),1)).parse_s("    gobble ").unwrap();
 /// assert_eq!(name,"gobble");
 /// ```
-pub fn read_fs<F>(f: F, min: usize) -> Read<impl Fn(String, char) -> ReadResult<String>>
+pub fn read_fs<CB: CharBool>(
+    cb: CB,
+    min: usize,
+) -> Read<impl Fn(String, char) -> ReadResult<String>>
 where
-    F: Fn(char) -> bool,
 {
     let fr = move |mut v: String, c: char| {
-        if f(c) {
+        if cb.char_bool(c) {
             v.push(c);
             if v.len() < min {
                 return ReadResult::Req(v);
@@ -186,7 +160,7 @@ impl Parser<&'static str> for KeyWord {
         let (t2, _) = do_tag(it, self.s)?;
         match t2.clone().next() {
             Some(c) => {
-                if is_alpha_num(c) {
+                if (Alpha, NumDigit, '_').char_bool(c) {
                     t2.err_cr(ECode::Mess(format!("keyword overflows {}--{}", self.s, c)))
                 } else {
                     Ok((t2, self.s))
@@ -358,31 +332,6 @@ pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
     let mut ri = i.clone();
     let c = ri.next().ok_or(ri.err_c(ECode::EOF))?;
     Ok((ri, c))
-}
-
-pub fn do_one_char<'a>(i: &LCChars<'a>, s: &'static str) -> ParseRes<'a, char> {
-    let mut i2 = i.clone();
-    let ic = i2.next().ok_or(i2.err_c(ECode::EOF))?;
-    for sc in s.chars() {
-        if ic == sc {
-            return Ok((i2, ic));
-        }
-    }
-    i2.err_cr(ECode::CharInStr(s, ic))
-}
-
-pub struct OneChar {
-    s: &'static str,
-}
-
-impl Parser<char> for OneChar {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, char> {
-        do_one_char(it, self.s)
-    }
-}
-
-pub fn one_char(s: &'static str) -> OneChar {
-    OneChar { s }
 }
 
 pub struct Peek<P: Parser<V>, V> {

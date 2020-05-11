@@ -5,8 +5,8 @@
 //! ```rust
 //! use gobble::*;
 //! let ident = || {
-//!     read_fs(is_alpha, 1)
-//!         .then(read_fs(is_alpha_num, 0))
+//!     read_fs(Alpha, 1)
+//!         .then(read_fs((Alpha,NumDigit,'_'), 0))
 //!         .map(|(mut a, b)| {
 //!             a.push_str(&b);
 //!             a
@@ -64,6 +64,7 @@
 //!  assert_eq!(s,"red");
 //!  ```
 
+pub mod chars;
 pub mod combi;
 pub mod common;
 pub mod err;
@@ -74,6 +75,7 @@ pub mod repeater;
 pub mod skip;
 pub mod tuple;
 
+pub use chars::*;
 pub use combi::*;
 pub use common::*;
 pub use err::*;
@@ -90,8 +92,8 @@ mod test {
     #[test]
     pub fn demo_test() {
         let ident = || {
-            read_fs(is_alpha, 1)
-                .then(read_fs(is_alpha_num, 0))
+            read_fs(Alpha, 1)
+                .then(read_fs((Alpha, NumDigit, '_'), 0))
                 .map(|(mut a, b)| {
                     a.push_str(&b);
                     a
