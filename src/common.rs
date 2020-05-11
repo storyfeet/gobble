@@ -3,25 +3,26 @@ use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::reader::*;
+use crate::strings::*;
+use crate::tuple::*;
 use std::convert::TryFrom;
 
-/// An commonly used form for quoted strings
-pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    /*('"', repeat_until(or(
-    read_fs(char_not("\\\""),
-
-    ),'"')*/
-    //'"'.ig_then(chars_until(or("\t".as('\t')
-
-    
-    tag("\"")
-        .ig_then(
-            esc('\"', '\\')
-                .e_map('t', '\t')
-                .e_map('n', '\n')
-                .e_map('r', '\r'),
-        )
+pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
+    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), take_char))
         .parse(it)
+}
+
+/// ```rust
+/// use gobble::*;
+/// assert_eq!(common_str.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
+/// ```
+pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
+    '"'.ig_then(chars_until(or(common_esc, take_char), '"'))
+        .parse(it)
+}
+
+pub fn common_ident<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
+    string_2_parts(Alpha.min(1), (Alpha, NumDigit, '_').any()).parse(it)
 }
 
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {

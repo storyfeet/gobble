@@ -1,10 +1,11 @@
+use crate::chars::*;
 use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 
 #[derive(Clone)]
-pub struct Skip<F> {
-    f: F,
+pub struct Skip<CB: CharBool> {
+    cb: CB,
     min: usize,
 }
 
@@ -14,20 +15,17 @@ pub struct Skip<F> {
 /// let s =p.parse_s("$$$$$$$hello").unwrap();
 /// assert_eq!(s,"hello");
 /// ```
-pub fn skip_while<F: Fn(char) -> bool>(f: F, min: usize) -> Skip<F> {
-    Skip { f, min }
+pub fn skip_while<CB: CharBool>(cb: CB, min: usize) -> Skip<CB> {
+    Skip { cb, min }
 }
 
-impl<F> Parser<()> for Skip<F>
-where
-    F: Fn(char) -> bool,
-{
+impl<CB: CharBool> Parser<()> for Skip<CB> {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut i = i.clone();
         let mut i2 = i.clone();
         let mut ndone = 0;
         while let Some(c) = i.next() {
-            match (self.f)(c) {
+            match self.cb.char_bool(c) {
                 true => {
                     i2 = i.clone();
                     ndone += 1;

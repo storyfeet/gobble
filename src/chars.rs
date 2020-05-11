@@ -19,8 +19,19 @@ pub trait CharBool: Sized {
     fn one(self) -> OneChar<Self> {
         OneChar { cb: self }
     }
+    fn any(self) -> Chars<Self> {
+        Chars { cb: self, min: 0 }
+    }
+    fn min(self, min: usize) -> Chars<Self> {
+        Chars { cb: self, min }
+    }
 }
 
+/// ```rust
+/// use gobble::*;
+/// assert_eq!(Alpha.min(4).parse_s("hello_"),Ok("hello".to_string()));
+/// assert!(Alpha.min(6).parse_s("hello_").is_err());
+/// ```
 pub struct Alpha;
 pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
@@ -145,6 +156,41 @@ impl<CB: CharBool> Parser<char> for OneChar<CB> {
 
 pub fn one_char<C: CharBool>(cb: C) -> OneChar<C> {
     OneChar { cb }
+}
+
+pub fn do_chars<'a, CB: CharBool>(it: &LCChars<'a>, cb: &CB, min: usize) -> ParseRes<'a, String> {
+    let mut res = String::new();
+    let mut it = it.clone();
+    loop {
+        let it2 = it.clone();
+        let n = it.next();
+        match n {
+            Some(c) if cb.char_bool(c) => {
+                res.push(c);
+            }
+            Some(_) | None => {
+                if res.len() >= min {
+                    return Ok((it2, res));
+                } else {
+                    let bcode = it.err_c(ECode::CharExpected(cb.expected(), n));
+                    return it.err_cr(ECode::Count(min, res.len(), Box::new(bcode)));
+                }
+            }
+        }
+    }
+}
+pub struct Chars<C: CharBool> {
+    min: usize,
+    cb: C,
+}
+
+impl<CB: CharBool> Parser<String> for Chars<CB> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        do_chars(it, &self.cb, self.min)
+    }
+}
+pub fn chars<CB: CharBool>(cb: CB, min: usize) -> Chars<CB> {
+    Chars { cb, min }
 }
 
 #[cfg(test)]

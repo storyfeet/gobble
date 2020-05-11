@@ -22,22 +22,11 @@ pub enum Value {
 }
 
 fn wsn() -> impl Parser<()> {
-    skip_while(
-        |c| match c {
-            ' ' | '\t' | '\n' | '\r' => true,
-            _ => false,
-        },
-        0,
-    )
+    skip_while(" \t\n\r", 0)
 }
 
 pub fn is_hex_digit(c: char) -> bool {
-    match c {
-        v if is_num(v) => true,
-        v if v >= 'A' && v <= 'F' => true,
-        v if v >= 'a' && v <= 'f' => true,
-        _ => false,
-    }
+    (NumDigit, "abcdefABCDEF").char_bool(c)
 }
 
 pub fn js_char() -> impl Parser<char> {
@@ -47,26 +36,25 @@ pub fn js_char() -> impl Parser<char> {
                 .map_err(|_| ECode::SMess("could not get char from unicode").brk())?;
             std::char::from_u32(n).ok_or(ECode::SMess("Could not get char from u32").brk())
         }),
-        "\\".ig_then(one_char("\"/\\bfrnt")).map(|c| match c {
-            'b' => '\u{08}',
-            'f' => '\u{0C}',
-            'n' => '\n',
-            'r' => '\r',
-            't' => '\t',
-            v => v,
-        }),
+        '\\'.ig_then(or6(
+            'b'.asv('\u{08}'),
+            'f'.asv('\u{0C}'),
+            'n'.asv('\n'),
+            'r'.asv('\r'),
+            't'.asv('\t'),
+            "\"\\".one(),
+        )),
         take_char,
     )
 }
 
 pub fn json_string() -> impl Parser<String> {
-    "\"".ig_then(repeat_until_ig(js_char(), "\""))
-        .map(|a| a.into_iter().collect())
+    "\"".ig_then(chars_until(js_char(), '"'))
 }
 
 ///whitespace_newline wrapper
 pub fn wsn_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
-    (wsn(), p, wsn()).map(|(_, b, _)| b)
+    middle(wsn(), p, wsn())
 }
 
 pub fn map_item() -> impl Parser<(String, Value)> {

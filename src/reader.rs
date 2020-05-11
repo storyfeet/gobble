@@ -125,14 +125,16 @@ pub struct Tag {
 
 /// Check for a specifig string
 /// Returns the string, so that used with "or" you can see which result you got
+#[deprecated(since = "0.1.8", note = "Use &str instead")]
 pub fn tag(s: &'static str) -> Tag {
     Tag { s }
 }
 
 ///Conveniece wrapper for tag, often you want to allow whitespace
 /// around a tag of some kind
+#[deprecated(since = "0.1.8", note = "Use s_(&str) instead")]
 pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
-    s_(tag(s))
+    s_(s)
 }
 
 pub fn ws_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
@@ -402,18 +404,5 @@ pub fn chars_until<A: Parser<char>, B: Parser<BV>, BV>(a: A, b: B) -> CharsUntil
         a,
         b,
         phb: PhantomData,
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use super::*;
-
-    #[test]
-    pub fn test_escape() {
-        let s = r#""he\tl\\lo to you\" "pop"#;
-        let p = tag("\"").ig_then(esc('\"', '\\').e_map('t', '\t'));
-        let r = p.parse_s(s).unwrap();
-        assert_eq!(r, "he\tl\\lo to you\" ");
     }
 }

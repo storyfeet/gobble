@@ -67,6 +67,13 @@ pub trait Parser<V>: Sized {
             phb: PhantomData,
         }
     }
+    fn asv<R: Clone>(self, r: R) -> As<Self, V, R> {
+        As {
+            a: self,
+            r,
+            pha: PhantomData,
+        }
+    }
 }
 
 impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
@@ -206,6 +213,18 @@ impl<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> Parser<B> for TryMap<A
             Ok(v2) => Ok((ri, v2)),
             Err(e) => ri.err_cr(e),
         }
+    }
+}
+
+pub struct As<A: Parser<AV>, AV, R: Clone> {
+    a: A,
+    pha: PhantomData<AV>,
+    r: R,
+}
+impl<A: Parser<AV>, AV, R: Clone> Parser<R> for As<A, AV, R> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, R> {
+        let (ri, _) = self.a.parse(it)?;
+        Ok((ri, self.r.clone()))
     }
 }
 

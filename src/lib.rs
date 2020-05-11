@@ -73,6 +73,7 @@ pub mod ptrait;
 pub mod reader;
 pub mod repeater;
 pub mod skip;
+pub mod strings;
 pub mod tuple;
 
 pub use chars::*;
@@ -84,6 +85,7 @@ pub use ptrait::*;
 pub use reader::*;
 pub use repeater::*;
 pub use skip::*;
+pub use strings::*;
 pub use tuple::*;
 
 #[cfg(test)]
@@ -91,18 +93,11 @@ mod test {
     use super::*;
     #[test]
     pub fn demo_test() {
-        let ident = || {
-            read_fs(Alpha, 1)
-                .then(read_fs((Alpha, NumDigit, '_'), 0))
-                .map(|(mut a, b)| {
-                    a.push_str(&b);
-                    a
-                })
-        };
+        let ident = || string_2_parts((Alpha).min(1), (Alpha, NumDigit, '_').any());
         let fsig = ident()
-            .then_ig(tag("("))
-            .then(sep(ident(), tag(","), true))
-            .then_ig(tag(")"));
+            .then_ig("(")
+            .then(sep(ident(), ",", true))
+            .then_ig(")");
 
         let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
         assert_eq!(nm, "loadFile1");

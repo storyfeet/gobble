@@ -10,7 +10,18 @@ pub struct RepeatN<A: Parser<AV>, AV> {
     pha: PhantomData<AV>,
 }
 
-fn _repeat_n<'a, A: Parser<AV>, AV>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<AV>> {
+/// ```
+/// use gobble::*;
+/// let it = LCChars::str("hello fish car cat");
+/// let (_,v) = do_repeat_n(&it,&common_ident.then_ig(" "),3).unwrap();
+/// assert_eq!(v,vec!["hello","fish","car"]);
+///
+/// ```
+pub fn do_repeat_n<'a, A: Parser<AV>, AV>(
+    it: &LCChars<'a>,
+    a: &A,
+    n: usize,
+) -> ParseRes<'a, Vec<AV>> {
     let mut i = it.clone();
     let mut res = Vec::new();
     for x in 0..n {
@@ -27,7 +38,7 @@ fn _repeat_n<'a, A: Parser<AV>, AV>(it: &LCChars<'a>, a: &A, n: usize) -> ParseR
 
 impl<A: Parser<AV>, AV> Parser<Vec<AV>> for RepeatN<A, AV> {
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
-        _repeat_n(it, &self.a, self.n)
+        do_repeat_n(it, &self.a, self.n)
     }
 }
 
@@ -47,7 +58,7 @@ where
 {
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (Vec<AV>, BV, Vec<CV>)> {
         let (ni, (va, b)) = _repeat_until(it, &self.a, &self.b)?;
-        let (fi, vc) = _repeat_n(&ni, &self.c, va.len())?;
+        let (fi, vc) = do_repeat_n(&ni, &self.c, va.len())?;
         Ok((fi, (va, b, vc)))
     }
 }
@@ -84,6 +95,14 @@ where
     }
 }
 
+/// Repeat an exact number of times
+///
+/// ```
+/// use gobble::*;
+/// let p = repeat_n(common_int.then_ig(","),5);
+/// let v = p.parse_s("7,6,5,4,3,2,1").unwrap();
+/// assert_eq!(v,vec![7,6,5,4,3]);
+/// ```
 pub fn repeat_n<A: Parser<AV>, AV>(a: A, n: usize) -> RepeatN<A, AV> {
     RepeatN {
         a,
@@ -313,7 +332,7 @@ pub mod test {
     use crate::*;
     #[test]
     pub fn test_reflecter() {
-        let (av, b, cv) = reflect(s_tag("("), read_fs((Alpha, NumDigit), 1), s_tag(")"))
+        let (av, b, cv) = reflect(s_("("), read_fs((Alpha, NumDigit), 1), s_(")"))
             .parse_s("(((help)))")
             .unwrap();
 
