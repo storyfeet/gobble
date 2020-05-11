@@ -117,7 +117,7 @@ pub struct Separated<A: Parser<AV>, B: Parser<BV>, AV, BV> {
     b: B,
     pha: PhantomData<AV>,
     phb: PhantomData<BV>,
-    min_one: bool,
+    min: usize,
 }
 
 impl<A, B, AV, BV> Parser<Vec<AV>> for Separated<A, B, AV, BV>
@@ -133,10 +133,10 @@ where
                 r
             }
             Err(e) => {
-                if !self.min_one {
+                if res.len() >= self.min {
                     return Ok((i.clone(), res));
                 } else {
-                    return i.err_cr(ECode::Wrap("No contents", Box::new(e)));
+                    return i.err_cr(ECode::Wrap("Not enough contents", Box::new(e)));
                 }
             }
         };
@@ -163,12 +163,12 @@ where
 pub fn sep<A: Parser<AV>, B: Parser<BV>, AV, BV>(
     a: A,
     b: B,
-    min_one: bool,
+    min: usize,
 ) -> Separated<A, B, AV, BV> {
     Separated {
         a,
         b,
-        min_one,
+        min,
         pha: PhantomData,
         phb: PhantomData,
     }

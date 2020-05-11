@@ -22,15 +22,15 @@ pub trait CharBool: Sized {
     fn any(self) -> Chars<Self> {
         Chars { cb: self, min: 0 }
     }
-    fn min(self, min: usize) -> Chars<Self> {
+    fn min_n(self, min: usize) -> Chars<Self> {
         Chars { cb: self, min }
     }
 }
 
 /// ```rust
 /// use gobble::*;
-/// assert_eq!(Alpha.min(4).parse_s("hello_"),Ok("hello".to_string()));
-/// assert!(Alpha.min(6).parse_s("hello_").is_err());
+/// assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
+/// assert!(Alpha.min_n(6).parse_s("hello_").is_err());
 /// ```
 pub struct Alpha;
 pub fn is_alpha(c: char) -> bool {
