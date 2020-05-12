@@ -1,135 +1,204 @@
-#Gobble
+Gobble is a simple parser combinator system for parsing strings.
 
-## A parser for strings in Rust that is just Code. No Macros, and easy to use generics
-
-This parser exists take some of the generics and macros pain out of parsing.  It is surprisingly declarative, and the final code looks a lot like a PEG with a few ```map``` functions added
-
-## The Parse Trait
-
-To Gobble : A parser is anything that implements it's Parser Trait
+For example parsing a function call
 
 ```rust
+use gobble::*;
+let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
 
+let fsig = (ident().then_ig("("),sep(ident(),",",0).then_ig(")"));
+ 
+let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
+assert_eq!(nm, "loadFile1");
+assert_eq!(args, vec!["fname", "ref"]);
+
+//identifiers cant start with numbers,
+assert!(fsig.parse_s("23file(fname,ref)").is_err());
+
+```
+
+To work this library depends the following:
+ 
+```rust
+pub enum ParseError {
+   //...
+}
+//The LCChars in the result will be a clone of the incoming iterator
+//but having iterated to end of the what the parser required.
 pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
 
-pub trait Parser<V>: Sized {
-    // LCChars is a chars iterator that tracks line and column
-    // a non mut pointer to LCChars means if it fails the caller knows for sure it hasnt changed.
-    //cloning the iterator is cheap
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V>;
-    //...
+//implements Iterator and can be cloned relatively cheaply
+pub struct LCChars<'a>{
+   it:std::str::Chars<'a>,
+   line:usize,
+   col:usize,
 }
-```
-Parser is already implemented for :
 
-* Any function matching ```Fn<'a>(&LCChars<'a>)->ParseRes<'a,V>```
-* ```&'static str``` if matched exactly returns itself.
-* ```char``` if matched exactly returns itself.
-* Tuples of Parsers up to 6 items. Matching each member in turn, and returning a tuple of the results. (if you need more than 6 you can always nest them) (a,b,c) is equivilent to a.then(b).then(c)
-
-The clearest example is in examples/json.rs 
-
-Mostly you will be combining functions with ```ig_then()```, ```then_ig()```, and ```or()```, or by putting them in tuples.
-Then if necessary mapping the results to fit the desired struct or enum result
-
-## The CharBool Trait
-
-The char bool traits creates tools for checking if a char fit's in a string:
-```rust 
-pub trait CharBool{
-    fn char_bool(c:char)->bool;
+pub trait Parser<V> {
+   // Takes a non mut pointer to the iterator, so that the caller
+   // may try something else if this doesn't work
+   // clone it before reading next
+   fn parse<'a>(&self,it:&LCChars<'a>)->ParseRes<'a,V>;
+   
+   //...helper methods
 }
-```
-it is implemented for:
-* char  -- if the chars match
-* &'static str -- if the str contains the char
-* Every Fn(char)->bool
-* Some Zero Size structs "Alpha", "NumDigit",
-* any tuple of the above up to 6 members. -- if any of its members pass
-
-## Example 1:
-
-```rust
-use gobble::*;
-pub fn ident()=>impl Parser<String>{
-
-    Alpha.min(1).then((Alpha,NumDigit,'_').any())
-        //map converts the result to the correct type for the function
-        .map(|(mut a, b)| {
-            a.push_str(&b);
-            a
-    })
+pub trait BoolChar {
+   fn bool_char(&self,c:char)->bool;
+   //....helper methods
 }
 ```
 
-## Example 2:
-Or more lazily with closures
+Parser is automatically implemented for:
+* ```Fn<'a>(&LCChars<'a>)->ParseRes<'a,String>```
+* ```&'static str``` which will return itself if it matches
+* ```char``` which will return itself if it matched the next char
+* Tuples of up to 6 parsers. Returning a tuple of all the
+   parsers matched one after the
+other.
+
+Most of the time a parser can be built simply by combining other parsers
+```rust
+use gobble::*;
+
+// map can be used to convert one result to another
+// keyval is now a function that returns a parser
+let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
+
+//this can also be written as below for better type safety
+fn keyval2()->impl Parser<(String,String)>{
+   (common_ident,":",common_str).map(|(a,_,c)|(a,c))
+}
+
+//parse_s is a helper on Parsers
+let (k,v) = keyval().parse_s(r#"car:"mini""#).unwrap();
+assert_eq!(k,"car");
+assert_eq!(v,"mini");
+
+//this can now be combined with other parsers.
+// 'ig_then' combines 2 parsers and drops the result of the first
+// 'then_ig' drops the result of the second
+// 'sep_until will repeat the first term into a Vec, separated by the second
+//    until the final term.
+let obj = || "{".ig_then(sep_until(keyval(),",","}"));
+
+let obs = obj().parse_s(r#"{cat:"Tiddles",dog:"Spot"}"#).unwrap();
+assert_eq!(obs[0],("cat".to_string(),"Tiddles".to_string()));
+
+```
+## CharBool
+
+CharBool is the trait for boolean char checks. It is auto implemented for:
+* Fn(char)->bool
+* char -- Returns true if the input matches the char
+* &'static str -- returns true if the str contains the input
+* several zero size types - Alpha,NumDigit,HexDigit,WS,WSL,Any
+* Tuples of up to 6 CharBools -- returning true if any of the members succeed
+
+This means you can combine them in tuples ```(Alpha,NumDigit,"_").char_bool(c)```
+will be true if any of them match
+
+
+
+CharBool also provides 3 helper methods which each return a parser
+* ```one()``` matches and returns exactly 1 character
+* ```min_n(n)``` requires at least n matches ruturns a string
+* ```any()``` matches any number of chars returning a string
+
+And a helper that returns a CharBool
+* ```except(cb)``` Passes if self does, and cb doesnt
+```rust
+use gobble::*;
+let s = |c| c > 'w' || c == 'z';
+let xv = s.one().parse_s("xhello").unwrap();
+assert_eq!(xv,'x');
+
+let id = (Alpha,"_*").min_n(4).parse_s("sm*shing_game+you").unwrap();
+assert_eq!(id,"sm*shing_game");
+
+// not enough matches
+assert!((NumDigit,"abc").min_n(4).parse_s("23fflr").is_err());
+
+// any succeeds even with no matches equivilent to min(0)
+assert_eq!((NumDigit,"abc").any().parse_s("23fflr"),Ok("23".to_string()));
+assert_eq!((NumDigit,"abc").any().parse_s("fflr"),Ok("".to_string()));
+
+```
+
+## White Space
+
+White space is pretty straight forward to handle
 
 ```rust
 use gobble::*;
-let ident = || {
-    read_fs(is_alpha, 1)
-        .then(read_fs(is_alpha_num, 0))
-        .map(|(mut a, b)| {
-            a.push_str(&b);
-            a
-    })
-};
+let my_ws = || " \t".any();
+// middle takes three parsers and returns the result of the middle
+// this could also be done easily with 'map' or 'then_ig'
+let my_s = |p| middle(my_ws(),p,my_ws());
 
-let fsig = ident()
-    .then_ig(tag("("))
-    .then(sep(ident(), tag(","), true))
-    .then_ig(tag(")"));
- 
- let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
- assert_eq!(nm, "loadFile1");
- assert_eq!(args, vec!["fname", "ref"]);
-
- assert!(fsig.parse_s("23file(fname,ref)").is_err());
- 
- ```
-## How the combinators work
- 
-The function combinators work by returning a Struct that is generically typed to match the parsers it is given.
-for example if 'a:A' and 'b:B' are parsers that both return a value of type 'V'. ```a.or(b)``` will return an ```Or<A,B,V>{a,b}```
-
-```Or<A,B,V>``` implements ```Parser<V>```, and will try a first, but then b second if a fails
-
-This means that writing a.or(b).or(c).or(d) Will return a Fixed size struct ```Or<Or<Or<A,B,V>,C,V>,D,V>```  It's not pretty but the compiler checks it an makes sure it works.
-
-This does of course create a problem for recursive types such as Json, as the structure created would be an infinite size.
-
-The solution is to write the definition of one part of your recursive loop yourself, but you can still use the other tricks to build it.
+let sp_id = my_s(common_ident);
+let v = sp_id.parse_s("   \t  doggo  ").unwrap();
+assert_eq!(v,"doggo");
+```
+That said gobble already provides ```ws()``` and ```s_(p)```
 
 ```rust
-// An Excerpt from example/json.rs 
 use gobble::*;
-use examples::json::{json_string,wsn_,map_item}; //ish
+//eoi = end of input
+let p = repeat_until_ig(s_("abc".min_n(1)),eoi);
+let r = p.parse_s("aaa \tbbb bab").unwrap();
+assert_eq!(r,vec!["aaa","bbb","bab"]);
+```
 
-pub fn json_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
-    //create the parse using the builders combinators
-    let p = or6(
-        "null".map(|_| Value::Null),
-        common_bool.map(|b| Value::Bool(b)),
-        or(
-            common_float.map(|f| Value::Num(f)),
-            common_int.map(|i| Value::Num(i as f64)),
-        ),
-        json_string().map(|s| Value::Str(s)),
-        // here we use json_value so returning a parser would create an infinite size object
-        "[".ig_then(sep_until(wsn_(json_value), ",", "]"))
-            .map(|a| Value::Array(a)),
-        "{".ig_then(sep_until(wsn_(map_item()), ",", "}")).map(|a| {
-            let mut m = HashMap::new();
-            for (k, v) in a {
-                m.insert(k, v);
-            }
-            Value::Object(m)
-        }),
-    );
-    //by creating the parser inside the function we avoid having infinitely sized objects but we can still have it look PEG enough to read easily
+## Recursive Structures
+
+Some structures like Json, or programming languages need to be able to
+handle recursion. However with the techniques we have used so far
+this would lead to infinitely sized structures.
+
+The way to handle this is to make sure one member of the loop is not  
+build into the structure. Instead to create it using the 'Fn'
+
+```rust
+use gobble::*;
+#[derive(Debug,PartialEq)]
+enum Expr {
+    Val(isize),
+    Add(Box<Expr>,Box<Expr>),
+    Paren(Box<Expr>),
+}
+
+fn expr_l()->impl Parser<Expr>{
+    or(
+        middle("(",s_(expr),")").map(|e|Expr::Paren(Box::new(e))),
+        common_int.map(|v|Expr::Val(v))
+    )
+}
+
+// using the full fn def we avoid the recursive structure
+fn expr<'a>(it:&LCChars<'a>)->ParseRes<'a,Expr> {
+    //note that expr_l has brackets but expr doesnt.
+    //expr is a reference to a static function
+    let p = (expr_l(),maybe(s_("+").ig_then(expr)))
+        .map(|(l,opr)|match opr{
+            Some(r)=>Expr::Add(Box::new(l),Box::new(r)),
+            None=>l,
+        });
+    
+
     p.parse(it)
 }
+
+let r = expr.parse_s("45 + (34+3 )").unwrap();
+
+//recursive structures are never fun to write manually
+assert_eq!(r,Expr::Add(
+                Box::new(Expr::Val(45)),
+                Box::new(Expr::Paren(Box::new(Expr::Add(
+                    Box::new(Expr::Val(34)),
+                    Box::new(Expr::Val(3))
+                ))))
+            ));
+
 ```
 
 ## Changelog:

@@ -9,6 +9,7 @@ pub enum Expected {
     Char(char),
     CharIn(&'static str),
     OneOf(Vec<Expected>),
+    Except(Box<Expected>, Box<Expected>),
 }
 
 pub trait CharBool: Sized {
@@ -25,8 +26,19 @@ pub trait CharBool: Sized {
     fn min_n(self, min: usize) -> Chars<Self> {
         Chars { cb: self, min }
     }
+    ///```rust
+    /// use gobble::*;
+    /// assert_eq!(
+    ///     Any.except("_").min_n(4).parse_s("asedf_wes"),
+    ///     Ok("asedf".to_string())
+    ///     );
+    ///```
+    fn except<E: CharBool>(self, e: E) -> CharsExcept<Self, E> {
+        CharsExcept { a: self, e }
+    }
 }
 
+/// [a-z][A-Z]
 /// ```rust
 /// use gobble::*;
 /// assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
@@ -44,6 +56,8 @@ impl CharBool for Alpha {
         Expected::CharIn("[a-z][A-Z]")
     }
 }
+
+///0..9
 pub struct NumDigit;
 pub fn is_num(c: char) -> bool {
     c >= '0' && c <= '9'
@@ -57,15 +71,61 @@ impl CharBool for NumDigit {
     }
 }
 
+pub struct Any;
+
+impl CharBool for Any {
+    fn char_bool(&self, _: char) -> bool {
+        true
+    }
+    fn expected(&self) -> Expected {
+        Expected::CharIn("anything")
+    }
+}
+
+///a-f,A-F,0-9
+pub struct HexDigit;
+pub fn is_hex(c: char) -> bool {
+    is_num(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+impl CharBool for HexDigit {
+    fn char_bool(&self, c: char) -> bool {
+        is_hex(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::CharIn("[0-9][a-f][A-F]")
+    }
+}
+
+///Whitespace
+pub struct WS;
+impl CharBool for WS {
+    fn char_bool(&self, c: char) -> bool {
+        " \t".char_bool(c)
+    }
+}
+///Whitespace and newlines
+pub struct WSL;
+impl CharBool for WSL {
+    fn char_bool(&self, c: char) -> bool {
+        " \t\n\r".char_bool(c)
+    }
+}
+
 impl CharBool for char {
     fn char_bool(&self, c: char) -> bool {
         *self == c
+    }
+    fn expected(&self) -> Expected {
+        Expected::Char(*self)
     }
 }
 
 impl CharBool for &'static str {
     fn char_bool(&self, c: char) -> bool {
         self.contains(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::CharIn(self)
     }
 }
 
@@ -79,13 +139,24 @@ impl<A: CharBool, B: CharBool> CharBool for (A, B) {
     fn char_bool(&self, c: char) -> bool {
         self.0.char_bool(c) || self.1.char_bool(c)
     }
+    fn expected(&self) -> Expected {
+        Expected::OneOf(vec![self.0.expected(), self.1.expected()])
+    }
 }
 
 impl<A: CharBool, B: CharBool, C: CharBool> CharBool for (A, B, C) {
     fn char_bool(&self, c: char) -> bool {
         self.0.char_bool(c) || self.1.char_bool(c) || self.2.char_bool(c)
     }
+    fn expected(&self) -> Expected {
+        Expected::OneOf(vec![
+            self.0.expected(),
+            self.1.expected(),
+            self.2.expected(),
+        ])
+    }
 }
+
 impl<A, B, C, D> CharBool for (A, B, C, D)
 where
     A: CharBool,
@@ -95,6 +166,14 @@ where
 {
     fn char_bool(&self, c: char) -> bool {
         self.0.char_bool(c) || self.1.char_bool(c) || self.2.char_bool(c) || self.3.char_bool(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::OneOf(vec![
+            self.0.expected(),
+            self.1.expected(),
+            self.2.expected(),
+            self.3.expected(),
+        ])
     }
 }
 
@@ -112,6 +191,15 @@ where
             || self.2.char_bool(c)
             || self.3.char_bool(c)
             || self.4.char_bool(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::OneOf(vec![
+            self.0.expected(),
+            self.1.expected(),
+            self.2.expected(),
+            self.3.expected(),
+            self.4.expected(),
+        ])
     }
 }
 
@@ -131,6 +219,16 @@ where
             || self.3.char_bool(c)
             || self.4.char_bool(c)
             || self.5.char_bool(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::OneOf(vec![
+            self.0.expected(),
+            self.1.expected(),
+            self.2.expected(),
+            self.3.expected(),
+            self.4.expected(),
+            self.5.expected(),
+        ])
     }
 }
 
@@ -191,6 +289,19 @@ impl<CB: CharBool> Parser<String> for Chars<CB> {
 }
 pub fn chars<CB: CharBool>(cb: CB, min: usize) -> Chars<CB> {
     Chars { cb, min }
+}
+
+pub struct CharsExcept<A: CharBool, E: CharBool> {
+    a: A,
+    e: E,
+}
+impl<A: CharBool, E: CharBool> CharBool for CharsExcept<A, E> {
+    fn char_bool(&self, c: char) -> bool {
+        self.a.char_bool(c) && !self.e.char_bool(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::Except(Box::new(self.a.expected()), Box::new(self.e.expected()))
+    }
 }
 
 #[cfg(test)]

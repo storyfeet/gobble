@@ -91,14 +91,21 @@
 //!  * Fn(char)->bool
 //!  * char -- Returns true if the input matches the char
 //!  * &'static str -- returns true if the str contains the input
-//!  * public zero size types - Alpha,NumDigit
+//!  * several zero size types - Alpha,NumDigit,HexDigit,WS,WSL,Any
 //!  * Tuples of up to 6 CharBools -- returning true if any of the members succeed
+//!
+//!  This means you can combine them in tuples ```(Alpha,NumDigit,"_").char_bool(c)```
+//!  will be true if any of them match
+//!
+//!  
 //!
 //!  CharBool also provides 3 helper methods which each return a parser
 //!  * ```one()``` matches and returns exactly 1 character
 //!  * ```min_n(n)``` requires at least n matches ruturns a string
 //!  * ```any()``` matches any number of chars returning a string
 //!
+//!  And a helper that returns a CharBool
+//!  * ```except(cb)``` Passes if self does, and cb doesnt
 //! ```rust
 //! use gobble::*;
 //! let s = |c| c > 'w' || c == 'z';
