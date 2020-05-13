@@ -21,6 +21,10 @@ impl<'a> LCChars<'a> {
         LCChars { iter, l: 0, c: 0 }
     }
 
+    pub fn as_str(&self) -> &'a str {
+        self.iter.as_str()
+    }
+
     pub fn err(&self, s: &'static str) -> ParseError {
         //println!("err {} {} ", self.l, self.c);
         ParseError::new(s, self.l, self.c)

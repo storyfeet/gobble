@@ -332,7 +332,7 @@ pub mod test {
     use crate::*;
     #[test]
     pub fn test_reflecter() {
-        let (av, b, cv) = reflect(s_("("), read_fs((Alpha, NumDigit), 1), s_(")"))
+        let (av, b, cv) = reflect(s_("("), (Alpha, NumDigit).min_n(1), s_(")"))
             .parse_s("(((help)))")
             .unwrap();
 

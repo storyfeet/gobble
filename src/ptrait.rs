@@ -11,6 +11,9 @@ pub trait Parser<V>: Sized {
     fn parse_s(&self, s: &str) -> Result<V, ParseError> {
         self.parse(&LCChars::str(s)).map(|(_, v)| v)
     }
+    fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, V), ParseError> {
+        self.parse(&LCChars::str(s)).map(|(i, v)| (i.as_str(), v))
+    }
     /// returns a parser that will combine the results of this and the given parser
     /// into a tuple
     fn then<P: Parser<V2>, V2>(self, p: P) -> Then<Self, P> {

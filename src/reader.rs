@@ -80,37 +80,26 @@ where
     }
 }
 
+#[deprecated(
+    since = "0.2.1",
+    note = "Use a tuple instead: (CharBool,CharBool) implements CharBool"
+)]
 pub fn or_char<A: Fn(char) -> bool, B: Fn(char) -> bool>(a: A, b: B) -> impl Fn(char) -> bool {
     move |c| a(c) || b(c)
 }
 
 /// ```rust
 /// use gobble::*;
-/// let name = s_(read_fs((Alpha,NumDigit),1)).parse_s("    gobble ").unwrap();
+/// let (rest,name )= s_(read_fs((Alpha,NumDigit),1)).parse_sn("    gobble ").unwrap();
 /// assert_eq!(name,"gobble");
+/// assert_eq!(rest,"");
 /// ```
-pub fn read_fs<CB: CharBool>(
-    cb: CB,
-    min: usize,
-) -> Read<impl Fn(String, char) -> ReadResult<String>>
-where
-{
-    let fr = move |mut v: String, c: char| {
-        if cb.char_bool(c) {
-            v.push(c);
-            if v.len() < min {
-                return ReadResult::Req(v);
-            }
-            return ReadResult::Cont(v);
-        }
-        if v.len() < min {
-            return ReadResult::Err(ECode::SMess("not enough to read_f"));
-        }
-        return ReadResult::Back(v);
-    };
-    read(fr, min)
+#[deprecated(since = "0.2.1", note = "Use CharBool::min_n(n) instead")]
+pub fn read_fs<CB: CharBool>(cb: CB, min: usize) -> impl Parser<String> {
+    cb.min_n(min)
 }
 
+#[deprecated(since = "0.2.1", note = "It's really not pretty")]
 pub fn read<F>(f: F, min: usize) -> Read<F>
 where
     F: Fn(String, char) -> ReadResult<String>,
@@ -157,28 +146,39 @@ pub fn ws(min: usize) -> impl Parser<()> {
     )
 }
 
-impl Parser<&'static str> for KeyWord {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, &'static str> {
-        let (t2, _) = do_tag(it, self.s)?;
+impl<P: Parser<V>, V> Parser<V> for KeyWord<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+        let (t2, r) = self.p.parse(it)?;
         match t2.clone().next() {
             Some(c) => {
                 if (Alpha, NumDigit, '_').char_bool(c) {
-                    t2.err_cr(ECode::Mess(format!("keyword overflows {}--{}", self.s, c)))
+                    t2.err_cr(ECode::SMess("Not Keyword"))
                 } else {
-                    Ok((t2, self.s))
+                    Ok((t2, r))
                 }
             }
-            None => Ok((t2, self.s)),
+            None => Ok((t2, r)),
         }
     }
 }
 
-pub struct KeyWord {
-    s: &'static str,
+pub struct KeyWord<P: Parser<V>, V> {
+    p: P,
+    phv: PhantomData<V>,
 }
 
-pub fn keyword(s: &'static str) -> KeyWord {
-    KeyWord { s }
+///```rust
+/// use gobble::*;
+/// assert_eq!(keyword("let").parse_s("let"), Ok("let"));
+/// assert_eq!(keyword("let").parse_s("let "), Ok("let"));
+/// assert_eq!(keyword("let").parse_s("let*"), Ok("let"));
+/// assert!(keyword("let").parse_s("letl").is_err());
+///```
+pub fn keyword<P: Parser<V>, V>(p: P) -> KeyWord<P, V> {
+    KeyWord {
+        p,
+        phv: PhantomData,
+    }
 }
 
 pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static str> {
