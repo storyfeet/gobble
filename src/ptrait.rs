@@ -74,6 +74,21 @@ pub trait Parser<V>: Sized {
             pha: PhantomData,
         }
     }
+
+    fn map_err<F: Fn(ECode) -> ECode>(self, f: F) -> MapErr<Self, V, F> {
+        MapErr {
+            p: self,
+            f,
+            phv: PhantomData,
+        }
+    }
+
+    fn brk(self) -> Break<Self, V> {
+        Break {
+            p: self,
+            phv: PhantomData,
+        }
+    }
 }
 
 impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
@@ -228,6 +243,39 @@ impl<A: Parser<AV>, AV, R: Clone> Parser<R> for As<A, AV, R> {
     }
 }
 
+pub struct MapErr<P: Parser<V>, V, F: Fn(ECode) -> ECode> {
+    p: P,
+    f: F,
+    phv: PhantomData<V>,
+}
+
+impl<P: Parser<V>, V, F: Fn(ECode) -> ECode> Parser<V> for MapErr<P, V, F> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+        match self.p.parse(it) {
+            Err(mut e) => {
+                e.code = (self.f)(e.code);
+                Err(e)
+            }
+            ov => ov,
+        }
+    }
+}
+pub struct Break<P: Parser<V>, V> {
+    p: P,
+    phv: PhantomData<V>,
+}
+
+impl<P: Parser<V>, V> Parser<V> for Break<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+        match self.p.parse(it) {
+            Err(mut e) => {
+                e.code = e.code.brk();
+                Err(e)
+            }
+            ov => ov,
+        }
+    }
+}
 #[cfg(test)]
 pub mod test {
     use super::*;
