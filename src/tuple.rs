@@ -42,6 +42,43 @@ where
         Ok((it5, (av, bv, cv, dv)))
     }
 }
+impl<A, AV, B, BV, C, CV, D, DV, E, EV> Parser<(AV, BV, CV, DV, EV)> for (A, B, C, D, E)
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+    D: Parser<DV>,
+    E: Parser<EV>,
+{
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (AV, BV, CV, DV, EV)> {
+        let (it2, av) = self.0.parse(it)?;
+        let (it3, bv) = self.1.parse(&it2)?;
+        let (it4, cv) = self.2.parse(&it3)?;
+        let (it5, dv) = self.3.parse(&it4)?;
+        let (it6, ev) = self.4.parse(&it5)?;
+        Ok((it6, (av, bv, cv, dv, ev)))
+    }
+}
+impl<A, AV, B, BV, C, CV, D, DV, E, EV, F, FV> Parser<(AV, BV, CV, DV, EV, FV)>
+    for (A, B, C, D, E, F)
+where
+    A: Parser<AV>,
+    B: Parser<BV>,
+    C: Parser<CV>,
+    D: Parser<DV>,
+    E: Parser<EV>,
+    F: Parser<FV>,
+{
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (AV, BV, CV, DV, EV, FV)> {
+        let (it2, av) = self.0.parse(it)?;
+        let (it3, bv) = self.1.parse(&it2)?;
+        let (it4, cv) = self.2.parse(&it3)?;
+        let (it5, dv) = self.3.parse(&it4)?;
+        let (it6, ev) = self.4.parse(&it5)?;
+        let (it7, fv) = self.5.parse(&it6)?;
+        Ok((it7, (av, bv, cv, dv, ev, fv)))
+    }
+}
 
 pub fn first<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> impl Parser<AV> {
     a.then_ig(b)
