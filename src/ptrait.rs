@@ -191,6 +191,7 @@ where
             Err(e) if e.is_break() => Err(e),
             Err(e) => match self.b.parse(i) {
                 Ok((r, v)) => Ok((r, v)),
+                Err(e2) if e2.is_break() => Err(e2),
                 Err(e2) => match e.partial_cmp(&e2) {
                     Some(Ordering::Equal) | None => i.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
                     Some(Ordering::Less) => Err(e2),
