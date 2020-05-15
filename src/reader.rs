@@ -406,3 +406,52 @@ pub fn chars_until<A: Parser<char>, B: Parser<BV>, BV>(a: A, b: B) -> CharsUntil
         phb: PhantomData,
     }
 }
+
+pub struct StringRepeat<A: Parser<AV>, AV: Into<String> + AsRef<str>> {
+    a: A,
+    pha: PhantomData<AV>,
+    min: usize,
+}
+
+impl<A: Parser<AV>, AV: Into<String> + AsRef<str>> Parser<String> for StringRepeat<A, AV> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        let (mut nit, mut res) = match self.a.parse(it) {
+            Ok((it2, ss)) => (it2, ss.into()),
+            Err(e) => {
+                if self.min == 0 {
+                    return Ok((it.clone(), String::new()));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+        let mut done = 1;
+        loop {
+            match self.a.parse(it) {
+                Ok((it, r)) => {
+                    res.push_str(r.as_ref());
+                    nit = it;
+                }
+                Err(e) => {
+                    if done < self.min {
+                        return Err(e);
+                    } else {
+                        return Ok((nit, res));
+                    }
+                }
+            }
+            done += 1;
+        }
+    }
+}
+
+pub fn string_repeat<A: Parser<AV>, AV: Into<String> + AsRef<str>>(
+    a: A,
+    min: usize,
+) -> StringRepeat<A, AV> {
+    StringRepeat {
+        a,
+        min,
+        pha: PhantomData,
+    }
+}
