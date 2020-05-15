@@ -427,7 +427,7 @@ impl<A: Parser<AV>, AV: Into<String> + AsRef<str>> Parser<String> for StringRepe
         };
         let mut done = 1;
         loop {
-            match self.a.parse(it) {
+            match self.a.parse(&nit) {
                 Ok((it, r)) => {
                     res.push_str(r.as_ref());
                     nit = it;
