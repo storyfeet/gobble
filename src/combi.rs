@@ -1,5 +1,7 @@
+use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -89,4 +91,25 @@ impl<P: Parser<V>, V> Parser<(usize, usize, V)> for LineCol<P, V> {
 
 pub fn line_col<P: Parser<V>, V>(p: P) -> LineCol<P, V> {
     LineCol { p, v: PhantomData }
+}
+
+impl<P: Parser<V>, V: Debug> Parser<()> for FailOn<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        match self.p.parse(it) {
+            Ok((_, v)) => it.err_cr(ECode::FailOn(format!("{:?}", v))),
+            Err(_) => Ok((it.clone(), ())),
+        }
+    }
+}
+
+pub struct FailOn<P: Parser<V>, V> {
+    p: P,
+    phv: PhantomData<V>,
+}
+
+pub fn fail_on<P: Parser<V>, V>(p: P) -> FailOn<P, V> {
+    FailOn {
+        p,
+        phv: PhantomData,
+    }
 }

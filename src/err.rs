@@ -29,6 +29,8 @@ pub enum ECode {
     UnexpectedChar(char),
     #[fail(display = "Char Expected {:?} - got{:?}", 0, 1)]
     CharExpected(crate::chars::Expected, Option<char>),
+    #[fail(display = "Failon {:?}", 0)]
+    FailOn(String),
 }
 
 impl ECode {
