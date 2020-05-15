@@ -2,6 +2,7 @@ use crate::chars::*;
 use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct Skip<CB: CharBool> {
@@ -43,5 +44,39 @@ impl<CB: CharBool> Parser<()> for Skip<CB> {
             return i.err_cr(ECode::EOF);
         }
         Ok((i, ()))
+    }
+}
+
+pub struct SkipRepeat<A: Parser<AV>, AV> {
+    a: A,
+    pha: PhantomData<AV>,
+    min: usize,
+}
+impl<A: Parser<AV>, AV> Parser<()> for SkipRepeat<A, AV> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        let mut done = 0;
+        let mut it = it.clone();
+        loop {
+            match self.a.parse(&it) {
+                Ok((ri, _)) => {
+                    done += 1;
+                    it = ri;
+                }
+                Err(e) => {
+                    if done < self.min {
+                        return Err(e);
+                    }
+                    return Ok((it, ()));
+                }
+            }
+        }
+    }
+}
+
+pub fn skip_repeat<A: Parser<AV>, AV>(a: A, min: usize) -> SkipRepeat<A, AV> {
+    SkipRepeat {
+        a,
+        min,
+        pha: PhantomData,
     }
 }

@@ -201,7 +201,15 @@ assert_eq!(r,Expr::Add(
 
 ```
 
+
+
 ## Changelog:
+
+### v 0.2.1:
+* Added StringRepeat
+* added SkipRepeat
+
+
 ### v 0.2.0 -- Major update:
 * created a new trait called CharBool
 * removed is_alpha_num
