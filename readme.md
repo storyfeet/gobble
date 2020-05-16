@@ -205,9 +205,11 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
-### v 0.2.1:
+### v 0.2.1 --WIP:
 * Added StringRepeat
 * added SkipRepeat
+* switched LCChars to use CharIndices
+* now has index parser
 
 
 ### v 0.2.0 -- Major update:
