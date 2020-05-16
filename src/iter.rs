@@ -20,10 +20,7 @@ impl<'a> LCChars<'a> {
         }
     }
 
-    #[deprecated(
-        since = "0.2.1",
-        note = "LCChars now uses CharIndices internally so please us from_char_indices instead"
-    )]
+    #[deprecated(since = "0.2.1", note = "use from_char_indices instead")]
     pub fn from_chars(iter: Chars<'a>) -> LCChars<'a> {
         LCChars::str(iter.as_str())
     }
