@@ -5,7 +5,6 @@ use std::str::{CharIndices, Chars};
 #[derive(Clone, Debug)]
 pub struct LCChars<'a> {
     iter: CharIndices<'a>,
-    i: Option<usize>,
     l: usize,
     c: usize,
 }
@@ -14,7 +13,6 @@ impl<'a> LCChars<'a> {
     pub fn str(s: &'a str) -> Self {
         LCChars {
             iter: s.char_indices(),
-            i: Some(0),
             l: 0,
             c: 0,
         }
@@ -26,12 +24,7 @@ impl<'a> LCChars<'a> {
     }
 
     pub fn from_char_indices(iter: CharIndices<'a>) -> LCChars<'a> {
-        LCChars {
-            iter,
-            l: 0,
-            c: 0,
-            i: Some(0),
-        }
+        LCChars { iter, l: 0, c: 0 }
     }
 
     pub fn as_str(&self) -> &'a str {
@@ -60,7 +53,7 @@ impl<'a> LCChars<'a> {
         (self.l, self.c)
     }
     pub fn index(&self) -> Option<usize> {
-        self.i
+        self.iter.clone().next().map(|(i, _)| i)
     }
 }
 
@@ -69,15 +62,13 @@ impl<'a> Iterator for LCChars<'a> {
     fn next(&mut self) -> Option<char> {
         //println!("lc {} {} ", self.l, self.c);
         match self.iter.next() {
-            Some((i, '\n')) => {
+            Some((_, '\n')) => {
                 self.l += 1;
                 self.c = 0;
-                self.i = Some(i);
                 Some('\n')
             }
-            Some((i, v)) => {
+            Some((_, v)) => {
                 self.c += 1;
-                self.i = Some(i);
                 Some(v)
             }
             None => None,
