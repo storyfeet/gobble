@@ -30,7 +30,7 @@ impl<'a> LCChars<'a> {
             iter,
             l: 0,
             c: 0,
-            i: None,
+            i: Some(0),
         }
     }
 
@@ -69,13 +69,15 @@ impl<'a> Iterator for LCChars<'a> {
     fn next(&mut self) -> Option<char> {
         //println!("lc {} {} ", self.l, self.c);
         match self.iter.next() {
-            Some((_, '\n')) => {
+            Some((i, '\n')) => {
                 self.l += 1;
                 self.c = 0;
+                self.i = Some(i);
                 Some('\n')
             }
-            Some((_, v)) => {
+            Some((i, v)) => {
                 self.c += 1;
+                self.i = Some(i);
                 Some(v)
             }
             None => None,
