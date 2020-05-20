@@ -13,8 +13,6 @@ pub struct Read<F> {
     min: usize,
 }
 
-//pub fn ident(Str)
-
 ///This is the return result for any function wishing to work with Read
 #[derive(Clone)]
 pub enum ReadResult<V> {
