@@ -1,35 +1,35 @@
-use failure_derive::*;
+//use failure_derive::*;
 use std::cmp::Ordering;
-
-#[derive(Debug, Clone, PartialEq, Fail)]
+use thiserror::*;
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum ECode {
-    #[fail(display = "BREAK -- {}", 0)]
+    #[error("BREAK -- {}", 0)]
     BREAK(Box<ECode>),
-    #[fail(display = "End of Input")]
+    #[error("End of Input")]
     EOF,
-    #[fail(display = "This Error Should Never Happen: {}", 0)]
+    #[error("This Error Should Never Happen: {}", 0)]
     Never(&'static str),
-    #[fail(display = "{}", 0)]
+    #[error("{}", 0)]
     SMess(&'static str),
-    #[fail(display = "{}", 0)]
+    #[error("{}", 0)]
     Mess(String),
-    #[fail(display = "{}::{}", 0, 1)]
+    #[error("{}::{}", 0, 1)]
     Wrap(&'static str, Box<ParseError>),
-    #[fail(display = "Error {} or {}", 0, 1)]
+    #[error("Error {} or {}", 0, 1)]
     Or(Box<ParseError>, Box<ParseError>),
-    #[fail(display = "Expected {}, got {:?}", 0, 1)]
+    #[error("Expected {}, got {:?}", 0, 1)]
     Char(char, Option<char>),
-    #[fail(display = "Expected a char in {:?}, got {:?}", 0, 1)]
+    #[error("Expected a char in {:?}, got {:?}", 0, 1)]
     CharInStr(&'static str, char),
-    #[fail(display = "Expected {:?}", 0)]
+    #[error("Expected {:?}", 0)]
     Tag(&'static str),
-    #[fail(display = "Require {} repeats, got only {} -- {}", 0, 1, 2)]
+    #[error("Require {} repeats, got only {} -- {}", 0, 1, 2)]
     Count(usize, usize, Box<ParseError>),
-    #[fail(display = "Unexpected {}", 0)]
+    #[error("Unexpected {}", 0)]
     UnexpectedChar(char),
-    #[fail(display = "Char Expected {:?} - got{:?}", 0, 1)]
+    #[error("Char Expected {:?} - got{:?}", 0, 1)]
     CharExpected(crate::chars::Expected, Option<char>),
-    #[fail(display = "Failon {:?}", 0)]
+    #[error("Failon {:?}", 0)]
     FailOn(String),
 }
 
@@ -39,8 +39,8 @@ impl ECode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Fail)]
-#[fail(display = "Parse Error at {},{}: {}", line, col, code)]
+#[derive(Debug, Clone, PartialEq, Error)]
+#[error("Parse Error at {},{}: {}", self.line, self.col, self.code)]
 pub struct ParseError {
     pub code: ECode,
     pub line: usize,
