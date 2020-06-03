@@ -1,6 +1,7 @@
 use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
+use crate::skip;
 //use crate::reader::*;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -23,8 +24,17 @@ pub trait CharBool: Sized {
     fn any(self) -> Chars<Self> {
         Chars { cb: self, min: 0 }
     }
+    /// min_n not min to avoid ambiguity with std::cmp::Ord
     fn min_n(self, min: usize) -> Chars<Self> {
         Chars { cb: self, min }
+    }
+
+    fn skip(self) -> skip::Skip<Self> {
+        skip::skip_c(self)
+    }
+
+    fn skip_min(self, min: usize) -> skip::SkipMin<Self> {
+        skip::skip_while(self, min)
     }
     ///```rust
     /// use gobble::*;
@@ -44,6 +54,7 @@ pub trait CharBool: Sized {
 /// assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
 /// assert!(Alpha.min_n(6).parse_s("hello_").is_err());
 /// ```
+#[derive(Clone, Copy)]
 pub struct Alpha;
 pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
@@ -58,6 +69,7 @@ impl CharBool for Alpha {
 }
 
 ///0..9
+#[derive(Clone, Copy)]
 pub struct NumDigit;
 pub fn is_num(c: char) -> bool {
     c >= '0' && c <= '9'
@@ -71,8 +83,8 @@ impl CharBool for NumDigit {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Any;
-
 impl CharBool for Any {
     fn char_bool(&self, _: char) -> bool {
         true
@@ -83,6 +95,7 @@ impl CharBool for Any {
 }
 
 ///a-f,A-F,0-9
+#[derive(Clone, Copy)]
 pub struct HexDigit;
 pub fn is_hex(c: char) -> bool {
     is_num(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')

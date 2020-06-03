@@ -4,8 +4,29 @@ use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 use std::marker::PhantomData;
 
-#[derive(Clone)]
 pub struct Skip<CB: CharBool> {
+    cb: CB,
+}
+
+impl<CB: CharBool> Parser<()> for Skip<CB> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        let mut it = it.clone();
+        loop {
+            let it2 = it.clone();
+            match it.next() {
+                Some(c) if self.cb.char_bool(c) => {}
+                Some(_) | None => return Ok((it2, ())),
+            }
+        }
+    }
+}
+
+pub fn skip_c<CB: CharBool>(cb: CB) -> Skip<CB> {
+    Skip { cb }
+}
+
+#[derive(Clone)]
+pub struct SkipMin<CB: CharBool> {
     cb: CB,
     min: usize,
 }
@@ -16,11 +37,11 @@ pub struct Skip<CB: CharBool> {
 /// let s =p.parse_s("$$$$$$$hello").unwrap();
 /// assert_eq!(s,"hello");
 /// ```
-pub fn skip_while<CB: CharBool>(cb: CB, min: usize) -> Skip<CB> {
-    Skip { cb, min }
+pub fn skip_while<CB: CharBool>(cb: CB, min: usize) -> SkipMin<CB> {
+    SkipMin { cb, min }
 }
 
-impl<CB: CharBool> Parser<()> for Skip<CB> {
+impl<CB: CharBool> Parser<()> for SkipMin<CB> {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut i = i.clone();
         let mut i2 = i.clone();

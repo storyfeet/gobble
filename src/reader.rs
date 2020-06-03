@@ -125,15 +125,16 @@ pub fn s_tag(s: &'static str) -> impl Parser<&'static str> {
 }
 
 pub fn ws_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
-    ws(0).ig_then(p)
+    WS.skip().ig_then(p)
 }
 
 ///Convenience wrapper to say allow whitespace around whatever I'm parsing.
 pub fn s_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
-    crate::combi::wrap(ws(0), p)
+    crate::combi::wrap(WS.skip(), p)
 }
 
 ///Take at least n white space characters
+#[deprecated(since = "0.3.2", note = "use WS.any() or WS.min(n) instead")]
 pub fn ws(min: usize) -> impl Parser<()> {
     skip_while(
         |c| match c {
@@ -307,7 +308,7 @@ pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
 }
 
 pub fn to_end() -> impl Parser<()> {
-    ws(0).then_ig(eoi)
+    WS.any().ig_then(eoi)
 }
 
 pub struct TakeN {
