@@ -1,7 +1,6 @@
 use crate::err::*;
 use crate::iter::LCChars;
 use crate::ptrait::*;
-use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct RepeatN<A: Parser> {
@@ -61,7 +60,7 @@ where
 ///
 /// ```rust
 /// use gobble::*;
-/// let p = reflect(s_tag("("),read_fs(Alpha,1),s_tag(")"));
+/// let p = reflect(s_("("),Alpha.min_n(1),s_(")"));
 ///
 /// let (av,b,cv) =p.parse_s("(((help)))").unwrap();
 ///
@@ -79,14 +78,7 @@ where
     B: Parser,
     C: Parser,
 {
-    Reflect {
-        a,
-        b,
-        c,
-        pha: PhantomData,
-        phb: PhantomData,
-        phc: PhantomData,
-    }
+    Reflect { a, b, c }
 }
 
 /// Repeat an exact number of times

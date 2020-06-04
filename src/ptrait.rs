@@ -184,7 +184,7 @@ pub struct Map<A: Parser, B, F: Fn(A::Out) -> B> {
     f: F,
 }
 
-impl<A: Parser, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
+impl<A: Parser<Out = AV>, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
     type Out = B;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
@@ -193,7 +193,7 @@ impl<A: Parser, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
 }
 
 #[derive(Clone)]
-pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> B> {
+pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> Result<B, ECode>> {
     a: A,
     f: F,
 }

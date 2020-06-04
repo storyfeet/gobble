@@ -65,7 +65,7 @@
 //!  let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
 //!
 //!  //this can also be written as below for better type safety
-//!  fn keyval2()->impl Parser<(String,String)>{
+//!  fn keyval2()->impl Parser<Out=(String,String)>{
 //!     (common_ident,":",common_str).map(|(a,_,c)|(a,c))
 //!  }
 //!  
@@ -167,7 +167,7 @@
 //!     Paren(Box<Expr>),
 //! }
 //!
-//! fn expr_l()->impl Parser<Expr>{
+//! fn expr_l()->impl Parser<Out=Expr>{
 //!     or(
 //!         middle("(",s_(expr),")").map(|e|Expr::Paren(Box::new(e))),
 //!         common_int.map(|v|Expr::Val(v))

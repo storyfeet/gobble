@@ -21,7 +21,7 @@ pub enum Value {
     Object(HashMap<String, Value>),
 }
 
-fn wsn() -> impl Parser<()> {
+fn wsn() -> impl Parser<Out = ()> {
     skip_while(" \t\n\r", 0)
 }
 
@@ -29,7 +29,7 @@ pub fn is_hex_digit(c: char) -> bool {
     (NumDigit, "abcdefABCDEF").char_bool(c)
 }
 
-pub fn js_char() -> impl Parser<char> {
+pub fn js_char() -> impl Parser<Out = char> {
     or3(
         "\\u".ig_then(take_n(4)).try_map(|v| {
             let n: u32 = u32::from_str_radix(&v, 16)
@@ -48,16 +48,16 @@ pub fn js_char() -> impl Parser<char> {
     )
 }
 
-pub fn json_string() -> impl Parser<String> {
-    "\"".ig_then(chars_until(js_char(), '"'))
+pub fn json_string() -> impl Parser<Out = String> {
+    "\"".ig_then(chars_until(js_char(), '"').map(|(a, _)| a))
 }
 
 ///whitespace_newline wrapper
-pub fn wsn_<P: Parser<V>, V>(p: P) -> impl Parser<V> {
+pub fn wsn_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
     middle(wsn(), p, wsn())
 }
 
-pub fn map_item() -> impl Parser<(String, Value)> {
+pub fn map_item() -> impl Parser<Out = (String, Value)> {
     (json_string(), wsn_(":"), p_value).map(|(a, _, b)| (a, b))
 }
 

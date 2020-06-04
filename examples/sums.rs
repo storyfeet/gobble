@@ -17,7 +17,7 @@ pub enum Expr {
     //Bracket(Box<Expr>),
 }
 
-fn parse_op() -> impl Parser<Op> {
+fn parse_op() -> impl Parser<Out = Op> {
     //s_ allows whitespace either side of a parser
     s_(one_char("+-*/")).try_map(|o| match o {
         '+' => Ok(Op::Add),
@@ -28,7 +28,7 @@ fn parse_op() -> impl Parser<Op> {
     })
 }
 
-fn parse_expr_l() -> impl Parser<Expr> {
+fn parse_expr_l() -> impl Parser<Out = Expr> {
     or(
         middle("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
         common_int.map(|i| Expr::Val(i)),

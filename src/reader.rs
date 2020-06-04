@@ -46,8 +46,8 @@ pub fn s_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
 }
 
 ///Take at least n white space characters
-#[deprecated(since = "0.3.2", note = "use WS.any() or WS.min(n) instead")]
-pub fn ws(min: usize) -> impl Parser<()> {
+#[deprecated(since = "0.3.0", note = "use WS.any() or WS.min(n) instead")]
+pub fn ws(min: usize) -> impl Parser<Out = ()> {
     skip_while(
         |c| match c {
             ' ' | '\t' | '\r' => true,
@@ -109,6 +109,7 @@ impl<F> Parser for Take<F>
 where
     F: CharBool,
 {
+    type Out = ();
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut n = 0;
         let mut i = i.clone();
@@ -151,7 +152,7 @@ pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
     i.err_r("Still More Input")
 }
 
-pub fn to_end() -> impl Parser<()> {
+pub fn to_end() -> impl Parser<Out = ()> {
     WS.any().ig_then(eoi)
 }
 

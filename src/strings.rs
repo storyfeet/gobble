@@ -1,6 +1,5 @@
 use crate::iter::LCChars;
 use crate::ptrait::*;
-use std::marker::PhantomData;
 
 pub struct String2P<A: Parser, B: Parser> {
     a: A,
@@ -31,10 +30,5 @@ where
     A::Out: Into<String>,
     B::Out: AsRef<str>,
 {
-    String2P {
-        a,
-        b,
-        pha: PhantomData,
-        phb: PhantomData,
-    }
+    String2P { a, b }
 }

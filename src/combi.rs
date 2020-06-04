@@ -27,7 +27,7 @@ where
 /// ```rust
 /// use gobble::*;
 /// use std::str::FromStr;
-/// let p = maybe(tag("-")).then(read_fs(is_num,1)).try_map(|(m,n)|{
+/// let p = maybe("-").then(NumDigit.min_n(1)).try_map(|(m,n)|{
 ///     let res:i32 = n.parse().map_err(|e|ECode::SMess("num could not convert to i32"))?;
 ///     if m.is_some() {
 ///         return Ok(-res )

@@ -17,7 +17,7 @@ pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
 /// assert_eq!(common_str.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
 /// ```
 pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    '"'.ig_then(chars_until(or(common_esc, take_char), '"'))
+    '"'.ig_then(chars_until(or(common_esc, take_char), '"').map(|(a, _)| a))
         .parse(it)
 }
 

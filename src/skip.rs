@@ -33,7 +33,7 @@ pub struct SkipMin<CB: CharBool> {
 
 /// ```rust
 /// use gobble::*;
-/// let p = skip_while(|x|x == '$',0).ig_then(read_fs(is_alpha,1));
+/// let p = '$'.skip().ig_then(Alpha.min_n(1));
 /// let s =p.parse_s("$$$$$$$hello").unwrap();
 /// assert_eq!(s,"hello");
 /// ```
