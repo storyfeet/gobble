@@ -205,7 +205,14 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
-### v 0.2.1 WIP:
+### v 0.3.0: Breaking Changes 
+*Now Parser output is a trait associated type (Out)
+use ```impl Parser<Out=V>``` instead of ```impl Parser<V>``` and most things should work
+* read_fs removed - use CharBool.min_n(usize) instead
+* Esc removed - see common::common_str for how to handle escapes
+
+
+### v 0.2.1 :
 * Added StringRepeat
 * added SkipRepeat
 * switched LCChars to use CharIndices

@@ -4,7 +4,7 @@ use crate::ptrait::*;
 use std::fmt::Debug;
 
 #[derive(Clone)]
-pub struct Maybe<A> {
+pub struct Maybe<A: Parser> {
     p: A,
 }
 
