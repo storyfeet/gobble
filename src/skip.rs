@@ -2,13 +2,13 @@ use crate::chars::*;
 use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
-use std::marker::PhantomData;
 
 pub struct Skip<CB: CharBool> {
     cb: CB,
 }
 
-impl<CB: CharBool> Parser<()> for Skip<CB> {
+impl<CB: CharBool> Parser for Skip<CB> {
+    type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut it = it.clone();
         loop {
@@ -41,7 +41,8 @@ pub fn skip_while<CB: CharBool>(cb: CB, min: usize) -> SkipMin<CB> {
     SkipMin { cb, min }
 }
 
-impl<CB: CharBool> Parser<()> for SkipMin<CB> {
+impl<CB: CharBool> Parser for SkipMin<CB> {
+    type Out = ();
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut i = i.clone();
         let mut i2 = i.clone();
@@ -68,12 +69,12 @@ impl<CB: CharBool> Parser<()> for SkipMin<CB> {
     }
 }
 
-pub struct SkipRepeat<A: Parser<AV>, AV> {
+pub struct SkipRepeat<A: Parser> {
     a: A,
-    pha: PhantomData<AV>,
     min: usize,
 }
-impl<A: Parser<AV>, AV> Parser<()> for SkipRepeat<A, AV> {
+impl<A: Parser> Parser for SkipRepeat<A> {
+    type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         let mut done = 0;
         let mut it = it.clone();
@@ -94,10 +95,6 @@ impl<A: Parser<AV>, AV> Parser<()> for SkipRepeat<A, AV> {
     }
 }
 
-pub fn skip_repeat<A: Parser<AV>, AV>(a: A, min: usize) -> SkipRepeat<A, AV> {
-    SkipRepeat {
-        a,
-        min,
-        pha: PhantomData,
-    }
+pub fn skip_repeat<A: Parser>(a: A, min: usize) -> SkipRepeat<A> {
+    SkipRepeat { a, min }
 }

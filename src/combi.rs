@@ -2,18 +2,18 @@ use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct Maybe<A> {
     p: A,
 }
 
-impl<A, V> Parser<Option<V>> for Maybe<A>
+impl<A> Parser for Maybe<A>
 where
-    A: Parser<V>,
+    A: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Option<V>> {
+    type Out = Option<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(i) {
             Ok((ir, v)) => Ok((ir, Some(v))),
             Err(_) => Ok((i.clone(), None)),
@@ -39,24 +39,23 @@ where
 /// let s = p.parse_s("34").unwrap();
 /// assert_eq!(s,34);
 /// ```
-pub fn maybe<P: Parser<V>, V>(p: P) -> Maybe<P> {
+pub fn maybe<P: Parser>(p: P) -> Maybe<P> {
     Maybe { p }
 }
 
 #[derive(Clone)]
-pub struct Wrap<A, B, VA, VB> {
+pub struct Wrap<A, B> {
     a: A,
     b: B,
-    pha: PhantomData<VA>,
-    phb: PhantomData<VB>,
 }
 
-impl<A, B, VA, VB> Parser<VB> for Wrap<A, B, VA, VB>
+impl<A, B> Parser for Wrap<A, B>
 where
-    A: Parser<VA>,
-    B: Parser<VB>,
+    A: Parser,
+    B: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, VB> {
+    type Out = B::Out;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, _) = self.a.parse(i)?;
         let (i, res) = self.b.parse(&i)?;
         let (n, _) = self.a.parse(&i)?;
@@ -64,20 +63,16 @@ where
     }
 }
 
-pub fn wrap<A, B, VA, VB>(a: A, b: B) -> Wrap<A, B, VA, VB>
+pub fn wrap<A, B>(a: A, b: B) -> Wrap<A, B>
 where
-    A: Parser<VA>,
-    B: Parser<VB>,
+    A: Parser,
+    B: Parser,
 {
-    Wrap {
-        a,
-        b,
-        pha: PhantomData,
-        phb: PhantomData,
-    }
+    Wrap { a, b }
 }
 
-impl<P: Parser<V>, V: Debug> Parser<()> for FailOn<P, V> {
+impl<P: Parser<Out = V>, V: Debug> Parser for FailOn<P> {
+    type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         match self.p.parse(it) {
             Ok((_, v)) => it.err_cr(ECode::FailOn(format!("{:?}", v))),
@@ -86,14 +81,10 @@ impl<P: Parser<V>, V: Debug> Parser<()> for FailOn<P, V> {
     }
 }
 
-pub struct FailOn<P: Parser<V>, V> {
+pub struct FailOn<P: Parser> {
     p: P,
-    phv: PhantomData<V>,
 }
 
-pub fn fail_on<P: Parser<V>, V>(p: P) -> FailOn<P, V> {
-    FailOn {
-        p,
-        phv: PhantomData,
-    }
+pub fn fail_on<P: Parser>(p: P) -> FailOn<P> {
+    FailOn { p }
 }

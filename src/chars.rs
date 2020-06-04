@@ -259,7 +259,8 @@ pub struct OneChar<CB: CharBool> {
     cb: CB,
 }
 
-impl<CB: CharBool> Parser<char> for OneChar<CB> {
+impl<CB: CharBool> Parser for OneChar<CB> {
+    type Out = char;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, char> {
         do_one_char(it, &self.cb)
     }
@@ -295,7 +296,8 @@ pub struct Chars<C: CharBool> {
     cb: C,
 }
 
-impl<CB: CharBool> Parser<String> for Chars<CB> {
+impl<CB: CharBool> Parser for Chars<CB> {
+    type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         do_chars(it, &self.cb, self.min)
     }

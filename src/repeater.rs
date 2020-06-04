@@ -4,10 +4,9 @@ use crate::ptrait::*;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct RepeatN<A: Parser<AV>, AV> {
+pub struct RepeatN<A: Parser> {
     n: usize,
     a: A,
-    pha: PhantomData<AV>,
 }
 
 /// ```
@@ -17,11 +16,7 @@ pub struct RepeatN<A: Parser<AV>, AV> {
 /// assert_eq!(v,vec!["hello","fish","car"]);
 ///
 /// ```
-pub fn do_repeat_n<'a, A: Parser<AV>, AV>(
-    it: &LCChars<'a>,
-    a: &A,
-    n: usize,
-) -> ParseRes<'a, Vec<AV>> {
+pub fn do_repeat_n<'a, A: Parser>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<A::Out>> {
     let mut i = it.clone();
     let mut res = Vec::new();
     for x in 0..n {
@@ -36,28 +31,27 @@ pub fn do_repeat_n<'a, A: Parser<AV>, AV>(
     return Ok((i, res));
 }
 
-impl<A: Parser<AV>, AV> Parser<Vec<AV>> for RepeatN<A, AV> {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+impl<A: Parser> Parser for RepeatN<A> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<A::Out>> {
         do_repeat_n(it, &self.a, self.n)
     }
 }
 
-pub struct Reflect<A, B, C, AV, BV, CV> {
+pub struct Reflect<A, B, C> {
     a: A,
     b: B,
     c: C,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
-    phc: PhantomData<CV>,
 }
-impl<A, B, C, AV, BV, CV> Parser<(Vec<AV>, BV, Vec<CV>)> for Reflect<A, B, C, AV, BV, CV>
+impl<A, B, C> Parser for Reflect<A, B, C>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
-    C: Parser<CV>,
+    A: Parser,
+    B: Parser,
+    C: Parser,
 {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, (Vec<AV>, BV, Vec<CV>)> {
-        let (ni, (va, b)) = _repeat_until(it, &self.a, &self.b)?;
+    type Out = (Vec<A::Out>, B::Out, Vec<C::Out>);
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        let (ni, (va, b)) = do_repeat_until(it, &self.a, &self.b)?;
         let (fi, vc) = do_repeat_n(&ni, &self.c, va.len())?;
         Ok((fi, (va, b, vc)))
     }
@@ -79,11 +73,11 @@ where
 /// assert!(r2.is_err());
 /// ```
 ///
-pub fn reflect<A, B, C, AV, BV, CV>(a: A, b: B, c: C) -> Reflect<A, B, C, AV, BV, CV>
+pub fn reflect<A, B, C>(a: A, b: B, c: C) -> Reflect<A, B, C>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
-    C: Parser<CV>,
+    A: Parser,
+    B: Parser,
+    C: Parser,
 {
     Reflect {
         a,
@@ -103,29 +97,24 @@ where
 /// let v = p.parse_s("7,6,5,4,3,2,1").unwrap();
 /// assert_eq!(v,vec![7,6,5,4,3]);
 /// ```
-pub fn repeat_n<A: Parser<AV>, AV>(a: A, n: usize) -> RepeatN<A, AV> {
-    RepeatN {
-        a,
-        n,
-        pha: PhantomData,
-    }
+pub fn repeat_n<A: Parser>(a: A, n: usize) -> RepeatN<A> {
+    RepeatN { a, n }
 }
 
 #[derive(Clone)]
-pub struct Separated<A: Parser<AV>, B: Parser<BV>, AV, BV> {
+pub struct Separated<A: Parser, B: Parser> {
     a: A,
     b: B,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
     min: usize,
 }
 
-impl<A, B, AV, BV> Parser<Vec<AV>> for Separated<A, B, AV, BV>
+impl<A, B> Parser for Separated<A, B>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
+    A: Parser,
+    B: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let mut res = Vec::new();
         let mut ri = match self.a.parse(i) {
             Ok((r, v)) => {
@@ -160,29 +149,19 @@ where
     }
 }
 
-pub fn sep<A: Parser<AV>, B: Parser<BV>, AV, BV>(
-    a: A,
-    b: B,
-    min: usize,
-) -> Separated<A, B, AV, BV> {
-    Separated {
-        a,
-        b,
-        min,
-        pha: PhantomData,
-        phb: PhantomData,
-    }
+pub fn sep<A: Parser, B: Parser>(a: A, b: B, min: usize) -> Separated<A, B> {
+    Separated { a, b, min }
 }
 
 #[derive(Clone)]
-pub struct Repeater<A, AV> {
+pub struct Repeater<A> {
     a: A,
-    pha: PhantomData<AV>,
     min: usize,
 }
 
-impl<A: Parser<AV>, AV> Parser<Vec<AV>> for Repeater<A, AV> {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+impl<A: Parser> Parser for Repeater<A> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let mut ri = i.clone();
         let mut res = Vec::new();
         loop {
@@ -203,19 +182,15 @@ impl<A: Parser<AV>, AV> Parser<Vec<AV>> for Repeater<A, AV> {
     }
 }
 
-pub fn repeat<A: Parser<AV>, AV>(a: A, min: usize) -> Repeater<A, AV> {
-    Repeater {
-        a,
-        min,
-        pha: PhantomData,
-    }
+pub fn repeat<A: Parser>(a: A, min: usize) -> Repeater<A> {
+    Repeater { a, min }
 }
 
-fn _repeat_until<'a, A: Parser<AV>, B: Parser<BV>, AV, BV>(
+fn do_repeat_until<'a, A: Parser, B: Parser>(
     it: &LCChars<'a>,
     a: &A,
     b: &B,
-) -> ParseRes<'a, (Vec<AV>, BV)> {
+) -> ParseRes<'a, (Vec<A::Out>, B::Out)> {
     let mut ri = it.clone();
     let mut res = Vec::new();
     loop {
@@ -235,50 +210,42 @@ fn _repeat_until<'a, A: Parser<AV>, B: Parser<BV>, AV, BV>(
     }
 }
 
-pub struct RepUntil<A, B, AV, BV> {
+pub struct RepUntil<A, B> {
     a: A,
     b: B,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
 }
 
-impl<A: Parser<AV>, B: Parser<BV>, AV, BV> Parser<(Vec<AV>, BV)> for RepUntil<A, B, AV, BV> {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, (Vec<AV>, BV)> {
-        _repeat_until(i, &self.a, &self.b)
+impl<A: Parser, B: Parser> Parser for RepUntil<A, B> {
+    type Out = (Vec<A::Out>, B::Out);
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_repeat_until(i, &self.a, &self.b)
     }
 }
 
 ///Repeats the first parser until the second parser.
 ///returns a vec of the first parsers results
-pub fn repeat_until<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> RepUntil<A, B, AV, BV> {
-    RepUntil {
-        a,
-        b,
-        pha: PhantomData,
-        phb: PhantomData,
-    }
+pub fn repeat_until<A: Parser, B: Parser>(a: A, b: B) -> RepUntil<A, B> {
+    RepUntil { a, b }
 }
 
-pub fn repeat_until_ig<A: Parser<AV>, B: Parser<BV>, AV, BV>(a: A, b: B) -> impl Parser<Vec<AV>> {
+pub fn repeat_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
     repeat_until(a, b).map(|(a, _)| a)
 }
 
-pub struct SepUntil<A, B, C, AV, BV, CV> {
+pub struct SepUntil<A, B, C> {
     a: A,
     b: B,
     c: C,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
-    phc: PhantomData<CV>,
 }
 
-impl<A, B, C, AV, BV, CV> Parser<Vec<AV>> for SepUntil<A, B, C, AV, BV, CV>
+impl<A, B, C> Parser for SepUntil<A, B, C>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
-    C: Parser<CV>,
+    A: Parser,
+    B: Parser,
+    C: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Vec<AV>> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let mut ri = i.clone();
         let mut res = Vec::new();
         match self.c.parse(&ri) {
@@ -309,20 +276,13 @@ where
 ///close is expected to be some kind of closer like '}'
 ///If you need the close you will have to use sep(..).then(..) though the errors will be less
 ///nice
-pub fn sep_until<A, B, C, AV, BV, CV>(a: A, b: B, c: C) -> SepUntil<A, B, C, AV, BV, CV>
+pub fn sep_until<A, B, C>(a: A, b: B, c: C) -> SepUntil<A, B, C>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
-    C: Parser<CV>,
+    A: Parser,
+    B: Parser,
+    C: Parser,
 {
-    SepUntil {
-        a,
-        b,
-        c,
-        pha: PhantomData,
-        phb: PhantomData,
-        phc: PhantomData,
-    }
+    SepUntil { a, b, c }
 }
 
 #[cfg(test)]

@@ -1,116 +1,88 @@
 use crate::err::{ECode, ParseError};
 use crate::iter::LCChars;
 use std::cmp::Ordering;
-use std::marker::PhantomData;
 
 pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
 
 /// The core trait for parsing
-pub trait Parser<V>: Sized {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V>;
-    fn parse_s(&self, s: &str) -> Result<V, ParseError> {
+pub trait Parser: Sized {
+    type Out;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out>;
+    fn parse_s(&self, s: &str) -> Result<Self::Out, ParseError> {
         self.parse(&LCChars::str(s)).map(|(_, v)| v)
     }
-    fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, V), ParseError> {
+    fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, Self::Out), ParseError> {
         self.parse(&LCChars::str(s)).map(|(i, v)| (i.as_str(), v))
     }
     /// returns a parser that will combine the results of this and the given parser
     /// into a tuple
-    fn then<P: Parser<V2>, V2>(self, p: P) -> Then<Self, P> {
+    fn then<P: Parser<Out = V2>, V2>(self, p: P) -> Then<Self, P> {
         Then { one: self, two: p }
     }
 
     /// returns a Parser that will require the given parser completes, but ignores its result
     /// useful for dropping brackets and whitespace
-    fn then_ig<P: Parser<V2>, V2>(self, p: P) -> ThenIg<Self, P, V, V2> {
-        ThenIg {
-            one: self,
-            two: p,
-            pha: PhantomData,
-            phb: PhantomData,
-        }
+    fn then_ig<P: Parser<Out = V2>, V2>(self, p: P) -> ThenIg<Self, P> {
+        ThenIg { one: self, two: p }
     }
     /// returns a Parser that will require this parser completes, but only return the
     /// result of the given parser
     /// useful for dropping brackets and whitespace etc
-    fn ig_then<P: Parser<V2>, V2>(self, p: P) -> IgThen<Self, P, V, V2> {
-        IgThen {
-            one: self,
-            two: p,
-            pha: PhantomData,
-            phb: PhantomData,
-        }
+    fn ig_then<P: Parser<Out = V2>, V2>(self, p: P) -> IgThen<Self, P> {
+        IgThen { one: self, two: p }
     }
     /// Returns a Parser that will try both child parsers, (A first) and return the first successfl
     /// result
-    fn or<P: Parser<V>>(self, p: P) -> Or<Self, P> {
+    fn or<P: Parser<Out = Self::Out>>(self, p: P) -> Or<Self, P> {
         Or { a: self, b: p }
     }
 
     /// Returns a Parser that converts the result of a successful parse to a different type.
     /// Much like map on iterators and Result
-    fn map<F: Fn(V) -> V2, V2>(self, f: F) -> Map<Self, V, V2, F> {
-        Map {
-            a: self,
-            f,
-            phav: PhantomData,
-            phb: PhantomData,
-        }
+    fn map<F: Fn(Self::Out) -> V2, V2>(self, f: F) -> Map<Self, V2, F> {
+        Map { a: self, f }
     }
     /// Returns a Parser that converts the result of a successful parse to a different type.
     /// however the map function can fail and return a result
     /// The Error type should be err::ECode, this does not have line associated. That will
     /// be attacked by the TryMap object
     /// so this will pass that error up correctly
-    fn try_map<F: Fn(V) -> Result<V2, ECode>, V2>(self, f: F) -> TryMap<Self, V, V2, F> {
-        TryMap {
-            a: self,
-            f,
-            phav: PhantomData,
-            phb: PhantomData,
-        }
+    fn try_map<F: Fn(Self::Out) -> Result<V2, ECode>, V2>(self, f: F) -> TryMap<Self, V2, F> {
+        TryMap { a: self, f }
     }
-    fn asv<R: Clone>(self, r: R) -> As<Self, V, R> {
-        As {
-            a: self,
-            r,
-            pha: PhantomData,
-        }
+    fn asv<R: Clone>(self, r: R) -> As<Self, R> {
+        As { a: self, r }
     }
 
-    fn ig(self) -> As<Self, V, ()> {
+    fn ig(self) -> As<Self, ()> {
         self.asv(())
     }
 
-    fn map_err<F: Fn(ECode) -> ECode>(self, f: F) -> MapErr<Self, V, F> {
-        MapErr {
-            p: self,
-            f,
-            phv: PhantomData,
-        }
+    fn map_err<F: Fn(ECode) -> ECode>(self, f: F) -> MapErr<Self, F> {
+        MapErr { p: self, f }
     }
 
-    fn brk(self) -> Break<Self, V> {
-        Break {
-            p: self,
-            phv: PhantomData,
-        }
+    fn brk(self) -> Break<Self> {
+        Break { p: self }
     }
 }
 
-impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser<V> for F {
+impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser for F {
+    type Out = V;
     fn parse<'b>(&self, i: &LCChars<'b>) -> ParseRes<'b, V> {
         self(i)
     }
 }
 
-impl Parser<&'static str> for &'static str {
+impl Parser for &'static str {
+    type Out = &'static str;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         crate::reader::do_tag(i, self)
     }
 }
 
-impl Parser<char> for char {
+impl Parser for char {
+    type Out = char;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, char> {
         let mut i2 = i.clone();
         match i2.next() {
@@ -126,12 +98,13 @@ pub struct Then<A, B> {
     two: B,
 }
 
-impl<A, B, AV, BV> Parser<(AV, BV)> for Then<A, B>
+impl<A, B> Parser for Then<A, B>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
+    A: Parser,
+    B: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, (AV, BV)> {
+    type Out = (A::Out, B::Out);
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, v1) = self.one.parse(i)?;
         let (i, v2) = self.two.parse(&i)?;
         Ok((i, (v1, v2)))
@@ -139,19 +112,18 @@ where
 }
 
 #[derive(Clone)]
-pub struct ThenIg<A, B, AV, BV> {
+pub struct ThenIg<A, B> {
     one: A,
     two: B,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
 }
 
-impl<A, B, AV, BV> Parser<AV> for ThenIg<A, B, AV, BV>
+impl<A, B> Parser for ThenIg<A, B>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
+    A: Parser,
+    B: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, AV> {
+    type Out = A::Out;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, v1) = self.one.parse(i)?;
         let (i, _) = self.two.parse(&i)?;
         Ok((i, v1))
@@ -159,19 +131,18 @@ where
 }
 
 #[derive(Clone)]
-pub struct IgThen<A, B, AV, BV> {
+pub struct IgThen<A, B> {
     one: A,
     two: B,
-    pha: PhantomData<AV>,
-    phb: PhantomData<BV>,
 }
 
-impl<A, B, AV, BV> Parser<BV> for IgThen<A, B, AV, BV>
+impl<A, B> Parser for IgThen<A, B>
 where
-    A: Parser<AV>,
-    B: Parser<BV>,
+    A: Parser,
+    B: Parser,
 {
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, BV> {
+    type Out = B::Out;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, _) = self.one.parse(i)?;
         let (i, v2) = self.two.parse(&i)?;
         Ok((i, v2))
@@ -184,11 +155,12 @@ pub struct Or<A, B> {
     b: B,
 }
 
-impl<A, B, V> Parser<V> for Or<A, B>
+impl<A, B, V> Parser for Or<A, B>
 where
-    A: Parser<V>,
-    B: Parser<V>,
+    A: Parser<Out = V>,
+    B: Parser<Out = V>,
 {
+    type Out = V;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V> {
         match self.a.parse(i) {
             Ok((r, v)) => Ok((r, v)),
@@ -207,14 +179,13 @@ where
 }
 
 #[derive(Clone)]
-pub struct Map<A: Parser<AV>, AV, B, F: Fn(AV) -> B> {
+pub struct Map<A: Parser, B, F: Fn(A::Out) -> B> {
     a: A,
     f: F,
-    phb: PhantomData<B>,
-    phav: PhantomData<AV>,
 }
 
-impl<A: Parser<AV>, AV, B, F: Fn(AV) -> B> Parser<B> for Map<A, AV, B, F> {
+impl<A: Parser, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
+    type Out = B;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
         Ok((ri, (self.f)(v)))
@@ -222,14 +193,13 @@ impl<A: Parser<AV>, AV, B, F: Fn(AV) -> B> Parser<B> for Map<A, AV, B, F> {
 }
 
 #[derive(Clone)]
-pub struct TryMap<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> {
+pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> B> {
     a: A,
     f: F,
-    phb: PhantomData<B>,
-    phav: PhantomData<AV>,
 }
 
-impl<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> Parser<B> for TryMap<A, AV, B, F> {
+impl<A: Parser, B, F: Fn(A::Out) -> Result<B, ECode>> Parser for TryMap<A, B, F> {
+    type Out = B;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
         match (self.f)(v) {
@@ -239,26 +209,26 @@ impl<A: Parser<AV>, AV, B, F: Fn(AV) -> Result<B, ECode>> Parser<B> for TryMap<A
     }
 }
 
-pub struct As<A: Parser<AV>, AV, R: Clone> {
+pub struct As<A: Parser, R: Clone> {
     a: A,
-    pha: PhantomData<AV>,
     r: R,
 }
-impl<A: Parser<AV>, AV, R: Clone> Parser<R> for As<A, AV, R> {
+impl<A: Parser, R: Clone> Parser for As<A, R> {
+    type Out = R;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, R> {
         let (ri, _) = self.a.parse(it)?;
         Ok((ri, self.r.clone()))
     }
 }
 
-pub struct MapErr<P: Parser<V>, V, F: Fn(ECode) -> ECode> {
+pub struct MapErr<P: Parser, F: Fn(ECode) -> ECode> {
     p: P,
     f: F,
-    phv: PhantomData<V>,
 }
 
-impl<P: Parser<V>, V, F: Fn(ECode) -> ECode> Parser<V> for MapErr<P, V, F> {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+impl<P: Parser, F: Fn(ECode) -> ECode> Parser for MapErr<P, F> {
+    type Out = P::Out;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, P::Out> {
         match self.p.parse(it) {
             Err(mut e) => {
                 e.code = (self.f)(e.code);
@@ -268,13 +238,13 @@ impl<P: Parser<V>, V, F: Fn(ECode) -> ECode> Parser<V> for MapErr<P, V, F> {
         }
     }
 }
-pub struct Break<P: Parser<V>, V> {
+pub struct Break<P: Parser> {
     p: P,
-    phv: PhantomData<V>,
 }
 
-impl<P: Parser<V>, V> Parser<V> for Break<P, V> {
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, V> {
+impl<P: Parser> Parser for Break<P> {
+    type Out = P::Out;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(it) {
             Err(mut e) => {
                 e.code = e.code.brk();
