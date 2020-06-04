@@ -210,6 +210,8 @@ assert_eq!(r,Expr::Add(
 * added SkipRepeat
 * switched LCChars to use CharIndices
 * now has index parser
+* Added skip and skip_min to CharBool
+* Added StrPos Parser str_pos
 
 
 ### v 0.2.0 -- Major update:

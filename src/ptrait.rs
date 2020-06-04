@@ -78,6 +78,10 @@ pub trait Parser<V>: Sized {
         }
     }
 
+    fn ig(self) -> As<Self, V, ()> {
+        self.asv(())
+    }
+
     fn map_err<F: Fn(ECode) -> ECode>(self, f: F) -> MapErr<Self, V, F> {
         MapErr {
             p: self,

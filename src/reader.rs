@@ -7,6 +7,39 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 //use std::iter::FromIterator;
 
+pub struct StrPos {
+    start: usize,
+    fin: Option<usize>,
+}
+
+impl StrPos {
+    ///This version assumes that this is the string it came from
+    pub fn on_str<'a>(&self, s: &'a str) -> &'a str {
+        match self.fin {
+            Some(f) => &s[self.start..f],
+            None => &s[self.start..],
+        }
+    }
+}
+
+pub struct SPos<P: Parser<V>, V> {
+    p: P,
+    v: PhantomData<V>,
+}
+
+impl<P: Parser<V>, V> Parser<StrPos> for SPos<P, V> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, StrPos> {
+        let start = it.index().ok_or(it.err_c(ECode::EOF))?;
+        let (rit, _) = self.p.parse(it)?;
+        let fin = rit.index();
+        Ok((rit, StrPos { start, fin }))
+    }
+}
+
+pub fn str_pos<P: Parser<V>, V>(p: P) -> SPos<P, V> {
+    SPos { p, v: PhantomData }
+}
+
 #[derive(Clone)]
 pub struct Read<F> {
     f: F,
