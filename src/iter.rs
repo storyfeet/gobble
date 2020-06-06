@@ -1,4 +1,4 @@
-Self::Out crate::err::{ECode, ParseError};
+use crate::err::{ECode, ParseError};
 use crate::ptrait::ParseRes;
 use std::str::{CharIndices, Chars};
 
