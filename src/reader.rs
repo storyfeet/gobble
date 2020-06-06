@@ -1,15 +1,21 @@
 use crate::chars::*;
 use crate::err::ECode;
 use crate::iter::LCChars;
-use crate::ptrait::{ParseRes, Parser};
+use crate::ptrait::{As, ParseRes, Parser};
 use crate::skip::skip_while;
 
-pub struct StrPos {
-    start: usize,
-    fin: Option<usize>,
+pub type StrPos = Pos<()>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Pos<O> {
+    pub line: usize,
+    pub col: usize,
+    pub start: usize,
+    pub fin: Option<usize>,
+    pub ob: O,
 }
 
-impl StrPos {
+impl<O> Pos<O> {
     ///This version assumes that this is the string it came from
     pub fn on_str<'a>(&self, s: &'a str) -> &'a str {
         match self.fin {
@@ -19,23 +25,45 @@ impl StrPos {
     }
 }
 
-pub struct SPos<P: Parser> {
+pub struct PPos<P: Parser> {
     p: P,
 }
 
-impl<P: Parser> Parser for SPos<P> {
-    type Out = StrPos;
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, StrPos> {
+impl<P: Parser> Parser for PPos<P> {
+    type Out = Pos<P::Out>;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        let (line, col) = it.lc();
         let start = it.index().ok_or(it.err_c(ECode::EOF))?;
-        let (rit, _) = self.p.parse(it)?;
+        let (rit, r) = self.p.parse(it)?;
         let fin = rit.index();
-        Ok((rit, StrPos { start, fin }))
+        Ok((
+            rit,
+            Pos {
+                line,
+                col,
+                start,
+                fin,
+                ob: r,
+            },
+        ))
     }
 }
 
-pub fn str_pos<P: Parser>(p: P) -> SPos<P> {
-    SPos { p }
+/// ```rust
+/// use gobble::*;
+/// let s = " \n  hello   ".to_string();
+/// let v = "\n ".any().ig_then(str_pos(Alpha.any())).parse_s(&s).unwrap();
+/// assert_eq!(v,Pos{line:1,col:2,start:4,fin:Some(9),ob:()});
+/// assert_eq!(v.on_str(&s),"hello");
+/// ```
+pub fn str_pos<P: Parser>(p: P) -> PPos<As<P, ()>> {
+    PPos { p: p.ig() }
 }
+
+pub fn pos<P: Parser>(p: P) -> PPos<P> {
+    PPos { p }
+}
+
 pub fn ws_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
     WS.skip().ig_then(p)
 }
