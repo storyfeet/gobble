@@ -1,89 +1,126 @@
 //use failure_derive::*;
 use std::cmp::Ordering;
+use std::error::Error;
+use std::fmt::Debug;
 use thiserror::*;
-#[derive(Debug, Clone, PartialEq, Error)]
-pub enum ECode {
-    #[error("End of Input")]
-    EOF,
-    #[error("This Error Should Never Happen: {}", .0)]
-    Never(&'static str),
-    #[error("{}", .0)]
-    SMess(&'static str),
-    #[error("{}", .0)]
-    Mess(String),
-    #[error("{}::{}", .0, .1)]
-    Wrap(&'static str, Box<ParseError>),
-    #[error("Error {} or {}", .0, .1)]
-    Or(Box<ParseError>, Box<ParseError>),
-    #[error("Expected {}, got {:?}", .0, .1)]
-    Char(char, Option<char>),
-    #[error("Expected a char in {:?}, got {:?}", .0, .1)]
-    CharInStr(&'static str, char),
-    #[error("Expected {:?}", .0)]
-    Tag(&'static str),
-    #[error("Require {} repeats, got only {} -- {}", .0, .1, .2)]
-    Count(usize, usize, Box<ParseError>),
-    #[error("Unexpected {}", .0)]
-    UnexpectedChar(char),
-    #[error("Char Expected {:?} - got{:?}", .0, .1)]
-    CharExpected(crate::chars::Expected, Option<char>),
-    #[error("Failon {:?}", .0)]
-    FailOn(String),
+
+pub trait Expectable: Debug + Clone + Error + PartialEq + Default {
+    fn or(self, a: Self) -> Self;
+    fn except(a: Self) -> Self;
+    fn is_nil(&self) -> bool;
+
+    fn first(a: Self, b: Self) -> Self {
+        if a.is_nil() {
+            return b;
+        }
+        a
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Error)]
-pub enum BreakMode {
-    #[error("")]
-    None,
-    #[error("Break")]
-    Total,
-    #[error("Break Depth {}",.0)]
-    Depth(usize),
+#[derive(Debug, PartialEq, Clone, Error)]
+pub enum Expected {
+    #[error("Unknown")]
+    Unknown,
+    #[error("{}",.0)]
+    Char(char),
+    #[error("WS")]
+    WS,
+    #[error("{}",.0)]
+    CharIn(&'static str),
+    #[error("\"{}\"",.0)]
+    Str(&'static str),
+    #[error("One of {:?}",.0)]
+    OneOf(Vec<Expected>),
+    #[error("but not {}",.0)]
+    Except(Box<Expected>),
+}
+impl Default for Expected {
+    fn default() -> Self {
+        Expected::Unknown
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Error)]
-#[error("Parse Error {} at  {},{}: {}",.brk, .line, .col, .code)]
-pub struct ParseError {
-    pub code: ECode,
-    pub line: usize,
-    pub col: usize,
-    pub brk: bool,
-}
-
-impl ParseError {
-    pub fn new(s: &'static str, line: usize, col: usize) -> ParseError {
-        ParseError {
-            code: ECode::SMess(s),
-            line,
-            col,
-            brk: false,
+impl Expectable for Expected {
+    fn or(self, b: Self) -> Self {
+        match self {
+            Expected::OneOf(mut v) => {
+                v.push(b);
+                Expected::OneOf(v)
+            }
+            v => Expected::OneOf(vec![v, b]),
         }
     }
-    pub fn code(code: ECode, line: usize, col: usize) -> ParseError {
+
+    fn except(a: Self) -> Self {
+        Expected::Except(Box::new(a))
+    }
+    fn is_nil(&self) -> bool {
+        match self {
+            Expected::Unknown | Expected::WS => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Error)]
+#[error("Parse Error {} at  {},{}: Expected {}",.is_brk, .line, .col, .exp)]
+pub struct ParseError<E: Expectable> {
+    pub exp: E,
+    pub index: Option<usize>,
+    pub line: usize,
+    pub col: usize,
+    pub is_brk: bool,
+}
+
+impl ParseError<Expected> {
+    pub fn new(s: &'static str, index: Option<usize>, line: usize, col: usize) -> Self {
         ParseError {
-            code,
+            exp: Expected::Str(s),
+            index,
             line,
             col,
-            brk: false,
+            is_brk: false,
+        }
+    }
+}
+
+impl<E: Expectable> ParseError<E> {
+    pub fn expect(exp: E, index: Option<usize>, line: usize, col: usize) -> ParseError<E> {
+        ParseError {
+            exp,
+            index,
+            line,
+            col,
+            is_brk: false,
+        }
+    }
+
+    pub fn new_exp<NE: Expectable>(self, nexp: NE) -> ParseError<NE> {
+        ParseError {
+            exp: nexp,
+            index: self.index,
+            line: self.line,
+            col: self.col,
+            is_brk: self.is_brk,
         }
     }
 
     pub fn is_break(&self) -> bool {
-        self.brk
+        self.is_brk
     }
 
     pub fn brk(mut self) -> Self {
-        self.brk = true;
+        self.is_brk = true;
         self
     }
 
     pub fn de_brk(mut self) -> Self {
-        self.brk = false;
+        self.is_brk = false;
         self
     }
 }
 
-impl PartialOrd for ParseError {
+impl<E: Expectable> PartialOrd for ParseError<E> {
     fn partial_cmp(&self, b: &Self) -> Option<Ordering> {
         if self.line == b.line {
             return self.col.partial_cmp(&b.col);

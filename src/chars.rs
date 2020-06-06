@@ -2,16 +2,8 @@ use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::skip;
-//use crate::reader::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Expected {
-    Unknown,
-    Char(char),
-    CharIn(&'static str),
-    OneOf(Vec<Expected>),
-    Except(Box<Expected>, Box<Expected>),
-}
+//use crate::reader::*;
 
 pub trait CharBool: Sized {
     fn char_bool(&self, c: char) -> bool;
@@ -247,11 +239,11 @@ where
 
 pub fn do_one_char<'a, CB: CharBool>(i: &LCChars<'a>, cb: &CB) -> ParseRes<'a, char> {
     let mut i2 = i.clone();
-    let ic = i2.next().ok_or(i2.err_c(ECode::EOF))?;
+    let ic = i2.next().ok_or(i2.err_ex(cb.expected()))?;
     if cb.char_bool(ic) {
         Ok((i2, ic))
     } else {
-        i2.err_cr(ECode::CharExpected(cb.expected(), Some(ic)))
+        i2.err_ex_r(cb.expected())
     }
 }
 
@@ -261,6 +253,7 @@ pub struct OneChar<CB: CharBool> {
 
 impl<CB: CharBool> Parser for OneChar<CB> {
     type Out = char;
+    type Ex = Expected;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, char> {
         do_one_char(it, &self.cb)
     }
@@ -284,8 +277,7 @@ pub fn do_chars<'a, CB: CharBool>(it: &LCChars<'a>, cb: &CB, min: usize) -> Pars
                 if res.len() >= min {
                     return Ok((it2, res));
                 } else {
-                    let bcode = it.err_c(ECode::CharExpected(cb.expected(), n));
-                    return it.err_cr(ECode::Count(min, res.len(), Box::new(bcode)));
+                    return it.err_ex_r(cb.expected());
                 }
             }
         }
@@ -298,6 +290,7 @@ pub struct Chars<C: CharBool> {
 
 impl<CB: CharBool> Parser for Chars<CB> {
     type Out = String;
+    type Ex = Expected;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         do_chars(it, &self.cb, self.min)
     }
@@ -315,7 +308,7 @@ impl<A: CharBool, E: CharBool> CharBool for CharsExcept<A, E> {
         self.a.char_bool(c) && !self.e.char_bool(c)
     }
     fn expected(&self) -> Expected {
-        Expected::Except(Box::new(self.a.expected()), Box::new(self.e.expected()))
+        self.a.expected().or(Expected::except(self.e.expected()))
     }
 }
 

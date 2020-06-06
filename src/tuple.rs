@@ -1,13 +1,15 @@
+use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 
-impl<A, B> Parser for (A, B)
+impl<A, B, E: Expectable> Parser for (A, B)
 where
-    A: Parser,
-    B: Parser,
+    A: Parser<Ex = E>,
+    B: Parser<Ex = E>,
 {
     type Out = (A::Out, B::Out);
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+    type Ex = E;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseERes<'a, Self::Out, E> {
         let (it2, av) = self.0.parse(it)?;
         let (it3, bv) = self.1.parse(&it2)?;
         Ok((it3, (av, bv)))
