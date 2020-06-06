@@ -1,4 +1,4 @@
-use crate::err::*;
+use crate::err::longer;
 use crate::iter::LCChars;
 use crate::ptrait::*;
 
@@ -18,13 +18,13 @@ pub struct RepeatN<A: Parser> {
 pub fn do_repeat_n<'a, A: Parser>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<A::Out>> {
     let mut i = it.clone();
     let mut res = Vec::new();
-    for x in 0..n {
+    for _ in 0..n {
         match a.parse(&i) {
             Ok((it2, pres)) => {
                 res.push(pres);
                 i = it2;
             }
-            Err(e) => return i.err_cr(ECode::Count(n, x, Box::new(e))),
+            Err(e) => return Err(e.wrap(i.err_p(a))),
         }
     }
     return Ok((i, res));
@@ -117,7 +117,7 @@ where
                 if res.len() >= self.min {
                     return Ok((i.clone(), res));
                 } else {
-                    return i.err_cr(ECode::Wrap("Not enough contents", Box::new(e)));
+                    return i.err_p_r(&self.a);
                 }
             }
         };
@@ -134,7 +134,7 @@ where
                     r
                 }
                 Err(e) => {
-                    return i.err_cr(ECode::Wrap("Nothing after sep", Box::new(e)));
+                    return i.err_p_r(&self.a);
                 }
             };
         }
@@ -164,7 +164,7 @@ impl<A: Parser> Parser for Repeater<A> {
                 }
                 Err(e) => {
                     if res.len() < self.min {
-                        return i.err_cr(ECode::Wrap("not enough elems", Box::new(e)));
+                        return i.err_p_r(&self.a);
                     } else {
                         return Ok((ri, res));
                     }
@@ -196,7 +196,7 @@ fn do_repeat_until<'a, A: Parser, B: Parser>(
             }
             Err(e) => match b.parse(&ri) {
                 Ok((r, bv)) => return Ok((r, (res, bv))),
-                Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                Err(e2) => return Err(longer(e, e2).wrap(ri.err("Repeat"))),
             },
         }
     }
@@ -256,7 +256,7 @@ where
                 Ok((r, _)) => r,
                 Err(e) => match self.c.parse(&ri) {
                     Ok((r, _)) => return Ok((r, res)),
-                    Err(e2) => return ri.err_cr(ECode::Or(Box::new(e), Box::new(e2))),
+                    Err(e2) => return Err(longer(e, e2).wrap(ri.err_p(self))),
                 },
             }
         }

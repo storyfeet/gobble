@@ -1,23 +1,23 @@
-use crate::err::{Expectable, Expected, ParseError};
+use crate::err::{longer, Expected, ParseError};
 use crate::iter::LCChars;
 use std::cmp::Ordering;
 
-pub type ParseERes<'a, V, E> = Result<(LCChars<'a>, V), ParseError<E>>;
-
-pub type ParseRes<'a, V> = ParseERes<'a, V, Expected>;
+pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
 
 /// The core trait for parsing
 pub trait Parser: Sized {
     type Out;
-    type Ex: Expectable;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, Self::Out, Self::Ex>;
-    fn expected(&self) -> Self::Ex {
-        Self::Ex::default()
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out>;
+    fn expected(&self) -> Expected {
+        Expected::ObOn(
+            std::any::type_name::<Self>(),
+            std::any::type_name::<Self::Out>(),
+        )
     }
-    fn parse_s(&self, s: &str) -> Result<Self::Out, ParseError<Self::Ex>> {
+    fn parse_s(&self, s: &str) -> Result<Self::Out, ParseError> {
         self.parse(&LCChars::str(s)).map(|(_, v)| v)
     }
-    fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, Self::Out), ParseError<Self::Ex>> {
+    fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, Self::Out), ParseError> {
         self.parse(&LCChars::str(s)).map(|(i, v)| (i.as_str(), v))
     }
     /// returns a parser that will combine the results of this and the given parser
@@ -54,7 +54,7 @@ pub trait Parser: Sized {
     /// The Error type should be err::ECode, this does not have line associated. That will
     /// be attacked by the TryMap object
     /// so this will pass that error up correctly
-    fn try_map<F: Fn(Self::Out) -> Result<V2, Self::Ex>, V2>(self, f: F) -> TryMap<Self, V2, F> {
+    fn try_map<F: Fn(Self::Out) -> Result<V2, Expected>, V2>(self, f: F) -> TryMap<Self, V2, F> {
         TryMap { a: self, f }
     }
 
@@ -66,7 +66,7 @@ pub trait Parser: Sized {
         self.asv(())
     }
 
-    fn map_exp<NEX: Expectable, F: Fn(Self::Ex) -> NEX>(self, f: F) -> MapExp<Self, NEX, F> {
+    fn map_exp<F: Fn(Expected) -> Expected>(self, f: F) -> MapExp<Self, F> {
         MapExp { p: self, f }
     }
 
@@ -75,17 +75,15 @@ pub trait Parser: Sized {
     }
 }
 
-impl<V, EX: Expectable, F: for<'a> Fn(&LCChars<'a>) -> ParseERes<'a, V, EX>> Parser for F {
+impl<V, F: for<'a> Fn(&LCChars<'a>) -> ParseRes<'a, V>> Parser for F {
     type Out = V;
-    type Ex = EX;
-    fn parse<'b>(&self, i: &LCChars<'b>) -> ParseERes<'b, V, EX> {
+    fn parse<'b>(&self, i: &LCChars<'b>) -> ParseRes<'b, V> {
         self(i)
     }
 }
 
 impl Parser for &'static str {
     type Out = &'static str;
-    type Ex = Expected;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         crate::reader::do_tag(i, self)
     }
@@ -93,15 +91,14 @@ impl Parser for &'static str {
 
 impl Parser for char {
     type Out = char;
-    type Ex = Expected;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, char> {
         let mut i2 = i.clone();
         match i2.next() {
             Some(c) if c == *self => Ok((i2, *self)),
-            v => i2.err_pxr(self),
+            _ => i2.err_p_r(self),
         }
     }
-    fn expected(&self) -> Self::Ex {
+    fn expected(&self) -> Expected {
         Expected::Char(*self)
     }
 }
@@ -112,20 +109,19 @@ pub struct Then<A, B> {
     b: B,
 }
 
-impl<A, B, E: Expectable> Parser for Then<A, B>
+impl<A, B> Parser for Then<A, B>
 where
-    A: Parser<Ex = E>,
-    B: Parser<Ex = E>,
+    A: Parser,
+    B: Parser,
 {
     type Out = (A::Out, B::Out);
-    type Ex = E;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, Self::Out, E> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, v1) = self.a.parse(i)?;
         let (i, v2) = self.b.parse(&i)?;
         Ok((i, (v1, v2)))
     }
-    fn expected(&self) -> Self::Ex {
-        Expectable::first(self.a.expected(), self.b.expected())
+    fn expected(&self) -> Expected {
+        Expected::first(self.a.expected(), self.b.expected())
     }
 }
 
@@ -135,20 +131,19 @@ pub struct ThenIg<A, B> {
     b: B,
 }
 
-impl<A, B, E: Expectable> Parser for ThenIg<A, B>
+impl<A, B> Parser for ThenIg<A, B>
 where
-    A: Parser<Ex = E>,
-    B: Parser<Ex = E>,
+    A: Parser,
+    B: Parser,
 {
     type Out = A::Out;
-    type Ex = E;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, Self::Out, E> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, v1) = self.a.parse(i)?;
         let (i, _) = self.b.parse(&i)?;
         Ok((i, v1))
     }
-    fn expected(&self) -> Self::Ex {
-        Expectable::first(self.a.expected(), self.b.expected())
+    fn expected(&self) -> Expected {
+        Expected::first(self.a.expected(), self.b.expected())
     }
 }
 
@@ -158,20 +153,19 @@ pub struct IgThen<A, B> {
     b: B,
 }
 
-impl<A, B, E: Expectable> Parser for IgThen<A, B>
+impl<A, B> Parser for IgThen<A, B>
 where
-    A: Parser<Ex = E>,
-    B: Parser<Ex = E>,
+    A: Parser,
+    B: Parser,
 {
     type Out = B::Out;
-    type Ex = E;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, Self::Out, E> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, _) = self.a.parse(i)?;
         let (i, v2) = self.b.parse(&i)?;
         Ok((i, v2))
     }
-    fn expected(&self) -> Self::Ex {
-        Expectable::first(self.a.expected(), self.b.expected())
+    fn expected(&self) -> Expected {
+        Expected::first(self.a.expected(), self.b.expected())
     }
 }
 
@@ -181,14 +175,13 @@ pub struct Or<A, B> {
     b: B,
 }
 
-impl<A, B, V, E: Expectable> Parser for Or<A, B>
+impl<A, B, V> Parser for Or<A, B>
 where
-    A: Parser<Out = V, Ex = E>,
-    B: Parser<Out = V, Ex = E>,
+    A: Parser<Out = V>,
+    B: Parser<Out = V>,
 {
     type Out = V;
-    type Ex = E;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, V, E> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V> {
         match self.a.parse(i) {
             Ok((r, v)) => Ok((r, v)),
             Err(e) if e.is_break() => Err(e),
@@ -196,14 +189,14 @@ where
                 Ok((r, v)) => Ok((r, v)),
                 Err(e2) if e2.is_break() => Err(e2),
                 Err(e2) => match e.partial_cmp(&e2) {
-                    Some(Ordering::Equal) | None => i.err_pxr(self),
+                    Some(Ordering::Equal) | None => Err(longer(e, e2).wrap(i.err_p(self))),
                     Some(Ordering::Less) => Err(e2),
                     Some(Ordering::Greater) => Err(e),
                 },
             },
         }
     }
-    fn expected(&self) -> E {
+    fn expected(&self) -> Expected {
         self.a.expected().or(self.b.expected())
     }
 }
@@ -216,33 +209,31 @@ pub struct Map<A: Parser, B, F: Fn(A::Out) -> B> {
 
 impl<A: Parser<Out = AV>, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
     type Out = B;
-    type Ex = A::Ex;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, B, Self::Ex> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
         Ok((ri, (self.f)(v)))
     }
-    fn expected(&self) -> Self::Ex {
+    fn expected(&self) -> Expected {
         self.a.expected()
     }
 }
 
 #[derive(Clone)]
-pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> Result<B, A::Ex>> {
+pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> Result<B, Expected>> {
     a: A,
     f: F,
 }
 
-impl<A: Parser, B, F: Fn(A::Out) -> Result<B, A::Ex>> Parser for TryMap<A, B, F> {
+impl<A: Parser, B, F: Fn(A::Out) -> Result<B, Expected>> Parser for TryMap<A, B, F> {
     type Out = B;
-    type Ex = A::Ex;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseERes<'a, B, A::Ex> {
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
         let (ri, v) = self.a.parse(i)?;
         match (self.f)(v) {
             Ok(v2) => Ok((ri, v2)),
             Err(e) => ri.err_ex_r(e),
         }
     }
-    fn expected(&self) -> Self::Ex {
+    fn expected(&self) -> Expected {
         self.a.expected()
     }
 }
@@ -253,27 +244,28 @@ pub struct As<A: Parser, R: Clone> {
 }
 impl<A: Parser, R: Clone> Parser for As<A, R> {
     type Out = R;
-    type Ex = A::Ex;
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseERes<'a, R, Self::Ex> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, R> {
         let (ri, _) = self.a.parse(it)?;
         Ok((ri, self.r.clone()))
     }
-    fn expected(&self) -> Self::Ex {
+    fn expected(&self) -> Expected {
         self.a.expected()
     }
 }
 
-pub struct MapExp<P: Parser, NEX, F: Fn(P::Ex) -> NEX> {
+pub struct MapExp<P: Parser, F: Fn(Expected) -> Expected> {
     p: P,
     f: F,
 }
 
-impl<P: Parser, NEX: Expectable, F: Fn(P::Ex) -> NEX> Parser for MapExp<P, NEX, F> {
+impl<P: Parser, F: Fn(Expected) -> Expected> Parser for MapExp<P, F> {
     type Out = P::Out;
-    type Ex = NEX;
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseERes<'a, P::Out, NEX> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, P::Out> {
         match self.p.parse(it) {
-            Err(mut e) => Err(e.new_exp((self.f)(e.exp))),
+            Err(mut e) => {
+                e.exp = (self.f)(e.exp);
+                Err(e)
+            }
             Ok(ov) => Ok(ov),
         }
     }
@@ -284,8 +276,7 @@ pub struct Break<P: Parser> {
 
 impl<P: Parser> Parser for Break<P> {
     type Out = P::Out;
-    type Ex = P::Ex;
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseERes<'a, Self::Out, Self::Ex> {
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(it) {
             Err(e) => Err(e.brk()),
             ov => ov,

@@ -34,9 +34,9 @@ pub fn js_char() -> impl Parser<Out = char> {
         "\\u".ig_then(
             take_n(4)
                 .try_map(|v| {
-                    let n: u32 = u32::from_str_radix(&v, 16)
-                        .map_err(|_| ECode::SMess("could not get char from unicode"))?;
-                    std::char::from_u32(n).ok_or(ECode::SMess("Could not get char from u32"))
+                    let n: u32 =
+                        u32::from_str_radix(&v, 16).map_err(|_| Expected::Str("4 hex digits"))?;
+                    std::char::from_u32(n).ok_or(Expected::Str("4 Hex digits"))
                 })
                 .brk(),
         ),

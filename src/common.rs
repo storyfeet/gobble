@@ -1,5 +1,5 @@
 use crate::chars::*;
-use crate::err::*;
+//use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::reader::*;
@@ -59,12 +59,11 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
 /// ```
 ///
 pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
-    //TODO add and mul without panic
     let mut it2 = it.clone();
     let (minus, it2) = match it2.next() {
         Some('-') => (-1, it2),
         Some(v) if is_num(v) => (1, it.clone()),
-        _ => return it.err_cr(ECode::SMess("Not an int")),
+        _ => return it.err_r("Common int"),
     };
 
     let (it3, n) = common_uint(&it2)?;

@@ -1,5 +1,5 @@
 use crate::chars::*;
-use crate::err::ECode;
+use crate::err::*;
 use crate::iter::LCChars;
 use crate::ptrait::{As, ParseRes, Parser};
 use crate::skip::skip_while;
@@ -33,7 +33,7 @@ impl<P: Parser> Parser for PPos<P> {
     type Out = Pos<P::Out>;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (line, col) = it.lc();
-        let start = it.index().ok_or(it.err_c(ECode::EOF))?;
+        let start = it.index().ok_or(it.err_p(&self.p))?;
         let (rit, r) = self.p.parse(it)?;
         let fin = rit.index();
         Ok((
@@ -91,8 +91,9 @@ impl<P: Parser> Parser for KeyWord<P> {
         let (t2, r) = self.p.parse(it)?;
         match t2.clone().next() {
             Some(c) => {
-                if (Alpha, NumDigit, '_').char_bool(c) {
-                    t2.err_cr(ECode::SMess("Not Keyword"))
+                let al = (Alpha, NumDigit, '_');
+                if al.char_bool(c) {
+                    t2.err_ex_r(Expected::except(al.expected()))
                 } else {
                     Ok((t2, r))
                 }
@@ -122,10 +123,10 @@ pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static s
     let mut s_it = tg.chars();
     while let Some(c) = s_it.next() {
         match i.next() {
-            None => return i.err_cr(ECode::Tag(tg)),
+            None => return i.err_r(tg),
             Some(ic) => {
                 if ic != c {
-                    return i.err_cr(ECode::Tag(tg));
+                    return i.err_r(tg);
                 }
             }
         }
@@ -194,7 +195,7 @@ impl Parser for TakeN {
         let mut res = String::new();
         let mut it = i.clone();
         for _ in 0..self.n {
-            res.push(it.next().ok_or(it.err_c(ECode::EOF))?);
+            res.push(it.next().ok_or(it.err("Any n chars"))?);
         }
         Ok((it, res))
     }
@@ -205,7 +206,7 @@ pub fn take_n(n: usize) -> TakeN {
 
 pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
     let mut ri = i.clone();
-    let c = ri.next().ok_or(ri.err_c(ECode::EOF))?;
+    let c = ri.next().ok_or(ri.err("Any char"))?;
     Ok((ri, c))
 }
 

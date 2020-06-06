@@ -1,5 +1,4 @@
 use crate::chars::*;
-use crate::err::ECode;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 
@@ -57,13 +56,13 @@ impl<CB: CharBool> Parser for SkipMin<CB> {
                     return if ndone >= self.min {
                         Ok((i2, ()))
                     } else {
-                        i.err_cr(ECode::UnexpectedChar(c))
+                        i.err_p_r(self)
                     }
                 }
             }
         }
         if ndone < self.min {
-            return i.err_cr(ECode::EOF);
+            return i.err_p_r(self);
         }
         Ok((i, ()))
     }

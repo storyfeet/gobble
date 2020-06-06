@@ -253,7 +253,6 @@ pub struct OneChar<CB: CharBool> {
 
 impl<CB: CharBool> Parser for OneChar<CB> {
     type Out = char;
-    type Ex = Expected;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, char> {
         do_one_char(it, &self.cb)
     }
@@ -290,7 +289,6 @@ pub struct Chars<C: CharBool> {
 
 impl<CB: CharBool> Parser for Chars<CB> {
     type Out = String;
-    type Ex = Expected;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         do_chars(it, &self.cb, self.min)
     }

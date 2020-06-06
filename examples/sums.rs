@@ -19,19 +19,19 @@ pub enum Expr {
 
 fn parse_op() -> impl Parser<Out = Op> {
     //s_ allows whitespace either side of a parser
-    s_(one_char("+-*/")).try_map(|o| match o {
+    s_("+-*/".one()).try_map(|o| match o {
         '+' => Ok(Op::Add),
         '-' => Ok(Op::Sub),
         '*' => Ok(Op::Mul),
         '/' => Ok(Op::Div),
-        _ => Err(ECode::Never("Op not in list")),
+        _ => Err(Expected::Str("[+-*/]")),
     })
 }
 
 fn parse_expr_l() -> impl Parser<Out = Expr> {
     or(
-        middle("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
         common_int.map(|i| Expr::Val(i)),
+        middle("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
     )
 }
 

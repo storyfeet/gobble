@@ -28,7 +28,7 @@ where
 /// use gobble::*;
 /// use std::str::FromStr;
 /// let p = maybe("-").then(NumDigit.min_n(1)).try_map(|(m,n)|{
-///     let res:i32 = n.parse().map_err(|e|ECode::SMess("num could not convert to i32"))?;
+///     let res:i32 = n.parse().map_err(|e|Expected::Str("[1..9]+"))?;
 ///     if m.is_some() {
 ///         return Ok(-res )
 ///     }
@@ -75,9 +75,12 @@ impl<P: Parser<Out = V>, V: Debug> Parser for FailOn<P> {
     type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         match self.p.parse(it) {
-            Ok((_, v)) => it.err_cr(ECode::FailOn(format!("{:?}", v))),
+            Ok((_, _)) => it.err_p_r(self),
             Err(_) => Ok((it.clone(), ())),
         }
+    }
+    fn expected(&self) -> Expected {
+        Expected::except(self.p.expected())
     }
 }
 
