@@ -246,10 +246,7 @@ impl<P: Parser> Parser for Break<P> {
     type Out = P::Out;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(it) {
-            Err(mut e) => {
-                e.code = e.code.brk();
-                Err(e)
-            }
+            Err(e) => Err(e.brk()),
             ov => ov,
         }
     }

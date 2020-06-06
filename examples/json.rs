@@ -31,11 +31,15 @@ pub fn is_hex_digit(c: char) -> bool {
 
 pub fn js_char() -> impl Parser<Out = char> {
     or3(
-        "\\u".ig_then(take_n(4)).try_map(|v| {
-            let n: u32 = u32::from_str_radix(&v, 16)
-                .map_err(|_| ECode::SMess("could not get char from unicode").brk())?;
-            std::char::from_u32(n).ok_or(ECode::SMess("Could not get char from u32").brk())
-        }),
+        "\\u".ig_then(
+            take_n(4)
+                .try_map(|v| {
+                    let n: u32 = u32::from_str_radix(&v, 16)
+                        .map_err(|_| ECode::SMess("could not get char from unicode"))?;
+                    std::char::from_u32(n).ok_or(ECode::SMess("Could not get char from u32"))
+                })
+                .brk(),
+        ),
         '\\'.ig_then(or6(
             'b'.asv('\u{08}'),
             'f'.asv('\u{0C}'),

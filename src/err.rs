@@ -3,8 +3,6 @@ use std::cmp::Ordering;
 use thiserror::*;
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ECode {
-    #[error("BREAK -- {}", .0)]
-    BREAK(Box<ECode>),
     #[error("End of Input")]
     EOF,
     #[error("This Error Should Never Happen: {}", .0)]
@@ -33,18 +31,23 @@ pub enum ECode {
     FailOn(String),
 }
 
-impl ECode {
-    pub fn brk(self) -> Self {
-        ECode::BREAK(Box::new(self))
-    }
+#[derive(Debug, Clone, PartialEq, Error)]
+pub enum BreakMode {
+    #[error("")]
+    None,
+    #[error("Break")]
+    Total,
+    #[error("Break Depth {}",.0)]
+    Depth(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Error)]
-#[error("Parse Error at {},{}: {}", self.line, self.col, self.code)]
+#[error("Parse Error {} at  {},{}: {}",.brk, .line, .col, .code)]
 pub struct ParseError {
     pub code: ECode,
     pub line: usize,
     pub col: usize,
+    pub brk: bool,
 }
 
 impl ParseError {
@@ -53,25 +56,30 @@ impl ParseError {
             code: ECode::SMess(s),
             line,
             col,
+            brk: false,
         }
     }
     pub fn code(code: ECode, line: usize, col: usize) -> ParseError {
-        ParseError { code, line, col }
+        ParseError {
+            code,
+            line,
+            col,
+            brk: false,
+        }
     }
 
     pub fn is_break(&self) -> bool {
-        match self.code {
-            ECode::BREAK(_) => true,
-            _ => false,
-        }
+        self.brk
     }
 
-    pub fn brk(self) -> Self {
-        ParseError {
-            code: self.code.brk(),
-            line: self.line,
-            col: self.col,
-        }
+    pub fn brk(mut self) -> Self {
+        self.brk = true;
+        self
+    }
+
+    pub fn de_brk(mut self) -> Self {
+        self.brk = false;
+        self
     }
 }
 
