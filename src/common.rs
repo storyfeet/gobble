@@ -45,7 +45,7 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
                 if added {
                     return Ok((it2, res));
                 }
-                return it.err_r("No numerical digits");
+                return it2.err_r("[0-9]*");
             }
         }
     }

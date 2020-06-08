@@ -1,27 +1,42 @@
 //use failure_derive::*;
 use std::cmp::Ordering;
 //use std::error::Error;
+use std::fmt;
 use std::fmt::Debug;
 use thiserror::*;
 
 #[derive(Debug, PartialEq, Clone, Error)]
 pub enum Expected {
-    #[error("Unknown")]
     Unknown,
-    #[error("{}",.0)]
     Char(char),
-    #[error("WS")]
     WS,
-    #[error("{}",.0)]
     CharIn(&'static str),
-    #[error("P = {}, V {}",.0,.1)]
     ObOn(&'static str, &'static str),
-    #[error("\"{}\"",.0)]
     Str(&'static str),
-    #[error("One of {:?}",.0)]
     OneOf(Vec<Expected>),
-    #[error("but not {}",.0)]
     Except(Box<Expected>),
+}
+
+impl fmt::Display for Expected {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Expected::*;
+        match self {
+            Unknown => write!(f, "Unknown"),
+            Char(c) => write!(f, "Char:\"{}\"", c),
+            WS => write!(f, "WhiteSpace"),
+            CharIn(s) => write!(f, "Char In {:?}", s),
+            ObOn(p, o) => write!(f, "{} on parser {}", o, p),
+            Str(s) => write!(f, "{:?}", s),
+            OneOf(v) => {
+                write!(f, "one of:(")?;
+                for e in v {
+                    write!(f, "{} ", e)?;
+                }
+                write!(f, ")")
+            }
+            Except(e) => write!(f, " Except : ({})", e),
+        }
+    }
 }
 
 impl Expected {
@@ -104,7 +119,7 @@ impl ParseError {
         };
 
         format!(
-            "    At {},{},{}: Expected {} -- Found {}\n",
+            "    At {},{},{}: Expected {} -- Found {:?}\n",
             ids, self.line, self.col, self.exp, pstr,
         )
     }

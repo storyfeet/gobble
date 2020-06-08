@@ -43,6 +43,24 @@ pub fn maybe<P: Parser>(p: P) -> Maybe<P> {
     Maybe { p }
 }
 
+pub struct MaybeThen<A: Parser, B: Parser> {
+    a: A,
+    b: B,
+}
+
+impl<A: Parser, B: Parser> Parser for MaybeThen<A, B> {
+    type Out = (Option<A::Out>, B::Out);
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        match self.a.parse(it) {
+            Ok((it2, v)) => self.b.parse(&it2).map(|(it, v2)| (it, (Some(v), v2))),
+            Err(e) => match self.b.parse(&it) {
+                Ok((it3, v)) => Ok((it3, (None, v))),
+                Err(e2) => Err(longer(e, e2)),
+            },
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Wrap<A, B> {
     a: A,

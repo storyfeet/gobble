@@ -14,6 +14,9 @@ pub trait Parser: Sized {
             std::any::type_name::<Self::Out>(),
         )
     }
+    fn continues(&self, _: &Self::Out) -> Option<Expected> {
+        None
+    }
     fn parse_s(&self, s: &str) -> Result<Self::Out, ParseError> {
         self.parse(&LCChars::str(s)).map(|(_, v)| v)
     }
@@ -86,6 +89,9 @@ impl Parser for &'static str {
     type Out = &'static str;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, &'static str> {
         crate::reader::do_tag(i, self)
+    }
+    fn expected(&self) -> Expected {
+        Expected::Str(self)
     }
 }
 
