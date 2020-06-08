@@ -8,9 +8,9 @@ where
 {
     type Out = (A::Out, B::Out);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (it2, av) = self.0.parse(it)?;
-        let (it3, bv) = self.1.parse(&it2)?;
-        Ok((it3, (av, bv)))
+        let (it2, av, c1) = self.0.parse(it)?;
+        let (it3, bv, c2) = self.1.parse(&it2).map_err(|e| e.cont(c1))?;
+        Ok((it3, (av, bv), c2))
     }
 }
 
@@ -22,10 +22,10 @@ where
 {
     type Out = (A::Out, B::Out, C::Out);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (it2, av) = self.0.parse(it)?;
-        let (it3, bv) = self.1.parse(&it2)?;
-        let (it4, cv) = self.2.parse(&it3)?;
-        Ok((it4, (av, bv, cv)))
+        let (it2, av, c1) = self.0.parse(it)?;
+        let (it3, bv, c2) = self.1.parse(&it2).map_err(|e| e.cont(c1))?;
+        let (it4, cv, c3) = self.2.parse(&it3).map_err(|e| e.cont(c1))?;
+        Ok((it4, (av, bv, cv), c3))
     }
 }
 
@@ -38,11 +38,11 @@ where
 {
     type Out = (A::Out, B::Out, C::Out, D::Out);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (it2, av) = self.0.parse(it)?;
-        let (it3, bv) = self.1.parse(&it2)?;
-        let (it4, cv) = self.2.parse(&it3)?;
-        let (it5, dv) = self.3.parse(&it4)?;
-        Ok((it5, (av, bv, cv, dv)))
+        let (it2, av, c1) = self.0.parse(it)?;
+        let (it3, bv, c2) = self.1.parse(&it2).map_err(|e| e.cont(c1))?;
+        let (it4, cv, c3) = self.2.parse(&it3).map_err(|e| e.cont(c2))?;
+        let (it5, dv, c4) = self.3.parse(&it4).map_err(|e| e.cont(c3))?;
+        Ok((it5, (av, bv, cv, dv), c4))
     }
 }
 impl<A, B, C, D, E> Parser for (A, B, C, D, E)
@@ -55,12 +55,12 @@ where
 {
     type Out = (A::Out, B::Out, C::Out, D::Out, E::Out);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (it2, av) = self.0.parse(it)?;
-        let (it3, bv) = self.1.parse(&it2)?;
-        let (it4, cv) = self.2.parse(&it3)?;
-        let (it5, dv) = self.3.parse(&it4)?;
-        let (it6, ev) = self.4.parse(&it5)?;
-        Ok((it6, (av, bv, cv, dv, ev)))
+        let (it2, av, c1) = self.0.parse(it)?;
+        let (it3, bv, c2) = self.1.parse(&it2).map_err(|e| e.cont(c1))?;
+        let (it4, cv, c3) = self.2.parse(&it3).map_err(|e| e.cont(c2))?;
+        let (it5, dv, c4) = self.3.parse(&it4).map_err(|e| e.cont(c3))?;
+        let (it6, ev, c5) = self.4.parse(&it5).map_err(|e| e.cont(c4))?;
+        Ok((it6, (av, bv, cv, dv, ev), c5))
     }
 }
 impl<A, B, C, D, E, F> Parser for (A, B, C, D, E, F)
@@ -74,13 +74,13 @@ where
 {
     type Out = (A::Out, B::Out, C::Out, D::Out, E::Out, F::Out);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (it2, av) = self.0.parse(it)?;
-        let (it3, bv) = self.1.parse(&it2)?;
-        let (it4, cv) = self.2.parse(&it3)?;
-        let (it5, dv) = self.3.parse(&it4)?;
-        let (it6, ev) = self.4.parse(&it5)?;
-        let (it7, fv) = self.5.parse(&it6)?;
-        Ok((it7, (av, bv, cv, dv, ev, fv)))
+        let (it2, av, c1) = self.0.parse(it)?;
+        let (it3, bv, c2) = self.1.parse(&it2).map_err(|e| e.cont(c1))?;
+        let (it4, cv, c3) = self.2.parse(&it3).map_err(|e| e.cont(c2))?;
+        let (it5, dv, c4) = self.3.parse(&it4).map_err(|e| e.cont(c3))?;
+        let (it6, ev, c5) = self.4.parse(&it5).map_err(|e| e.cont(c4))?;
+        let (it7, fv, c6) = self.5.parse(&it6).map_err(|e| e.cont(c5))?;
+        Ok((it7, (av, bv, cv, dv, ev, fv), c6))
     }
 }
 

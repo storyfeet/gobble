@@ -15,8 +15,8 @@ where
     type Out = Option<A::Out>;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(i) {
-            Ok((ir, v)) => Ok((ir, Some(v))),
-            Err(_) => Ok((i.clone(), None)),
+            Ok((ir, v, ex)) => Ok((ir, Some(v), ex)),
+            Err(e) => Ok((i.clone(), None, Some(e.exp))),
         }
     }
 }
@@ -43,24 +43,6 @@ pub fn maybe<P: Parser>(p: P) -> Maybe<P> {
     Maybe { p }
 }
 
-pub struct MaybeThen<A: Parser, B: Parser> {
-    a: A,
-    b: B,
-}
-
-impl<A: Parser, B: Parser> Parser for MaybeThen<A, B> {
-    type Out = (Option<A::Out>, B::Out);
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        match self.a.parse(it) {
-            Ok((it2, v)) => self.b.parse(&it2).map(|(it, v2)| (it, (Some(v), v2))),
-            Err(e) => match self.b.parse(&it) {
-                Ok((it3, v)) => Ok((it3, (None, v))),
-                Err(e2) => Err(longer(e, e2)),
-            },
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Wrap<A, B> {
     a: A,
@@ -74,10 +56,10 @@ where
 {
     type Out = B::Out;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (i, _) = self.a.parse(i)?;
-        let (i, res) = self.b.parse(&i)?;
-        let (n, _) = self.a.parse(&i)?;
-        Ok((n, res))
+        let (i, _, c1) = self.a.parse(i)?;
+        let (i, res, c2) = self.b.parse(&i).map_err(|e| e.cont(c1))?;
+        let (n, _, c3) = self.a.parse(&i).map_err(|e| e.cont(c2))?;
+        Ok((n, res, c3))
     }
 }
 
@@ -93,8 +75,8 @@ impl<P: Parser<Out = V>, V: Debug> Parser for FailOn<P> {
     type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         match self.p.parse(it) {
-            Ok((_, _)) => it.err_p_r(self),
-            Err(_) => Ok((it.clone(), ())),
+            Ok((_, _, _)) => it.err_p_r(self),
+            Err(_) => Ok((it.clone(), (), None)),
         }
     }
     fn expected(&self) -> Expected {

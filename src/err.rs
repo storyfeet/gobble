@@ -112,6 +112,16 @@ impl ParseError {
         }
     }
 
+    pub fn cont(mut self, o: Option<Expected>) -> Self {
+        match o {
+            Some(ex) => {
+                self.exp = self.exp.or(ex);
+                self
+            }
+            None => self,
+        }
+    }
+
     pub fn print_on(&self, s: &str) -> String {
         let (pstr, ids): (String, String) = match self.index {
             Some(i) => (s[i..].chars().take(10).collect(), i.to_string()),

@@ -15,11 +15,11 @@ where
 {
     type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
-        let (it2, av) = self.a.parse(it)?;
-        let (itres, bv) = self.b.parse(&it2)?;
+        let (it2, av, c1) = self.a.parse(it)?;
+        let (itres, bv, c2) = self.b.parse(&it2).map_err(|e| e.cont(c1))?;
         let mut s: String = av.into();
         s.push_str(bv.as_ref());
-        Ok((itres, s))
+        Ok((itres, s, c2))
     }
 }
 

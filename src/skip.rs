@@ -14,7 +14,7 @@ impl<CB: CharBool> Parser for Skip<CB> {
             let it2 = it.clone();
             match it.next() {
                 Some(c) if self.cb.char_bool(c) => {}
-                Some(_) | None => return Ok((it2, ())),
+                Some(_) | None => return Ok((it2, (), Some(self.cb.expected()))),
             }
         }
     }
@@ -54,7 +54,7 @@ impl<CB: CharBool> Parser for SkipMin<CB> {
                 }
                 false => {
                     return if ndone >= self.min {
-                        Ok((i2, ()))
+                        Ok((i2, (), Some(self.cb.expected())))
                     } else {
                         i.err_p_r(self)
                     }
@@ -64,7 +64,7 @@ impl<CB: CharBool> Parser for SkipMin<CB> {
         if ndone < self.min {
             return i.err_p_r(self);
         }
-        Ok((i, ()))
+        Ok((i, (), Some(self.cb.expected())))
     }
 }
 
@@ -79,7 +79,7 @@ impl<A: Parser> Parser for SkipRepeat<A> {
         let mut it = it.clone();
         loop {
             match self.a.parse(&it) {
-                Ok((ri, _)) => {
+                Ok((ri, _, _)) => {
                     done += 1;
                     it = ri;
                 }
@@ -87,7 +87,7 @@ impl<A: Parser> Parser for SkipRepeat<A> {
                     if done < self.min {
                         return Err(e);
                     }
-                    return Ok((it, ()));
+                    return Ok((it, (), Some(self.a.expected())));
                 }
             }
         }

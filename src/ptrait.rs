@@ -2,26 +2,26 @@ use crate::err::{longer, Expected, ParseError};
 use crate::iter::LCChars;
 use std::cmp::Ordering;
 
-pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
+pub type ParseRes<'a, V> = Result<(LCChars<'a>, V, Option<Expected>), ParseError>;
 
 /// The core trait for parsing
 pub trait Parser: Sized {
     type Out;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out>;
+
     fn expected(&self) -> Expected {
         Expected::ObOn(
             std::any::type_name::<Self>(),
             std::any::type_name::<Self::Out>(),
         )
     }
-    fn continues(&self, _: &Self::Out) -> Option<Expected> {
-        None
-    }
     fn parse_s(&self, s: &str) -> Result<Self::Out, ParseError> {
-        self.parse(&LCChars::str(s)).map(|(_, v)| v)
+        self.parse(&LCChars::str(s)).map(|(_, v, _)| v)
     }
+
     fn parse_sn<'a>(&self, s: &'a str) -> Result<(&'a str, Self::Out), ParseError> {
-        self.parse(&LCChars::str(s)).map(|(i, v)| (i.as_str(), v))
+        self.parse(&LCChars::str(s))
+            .map(|(i, v, _)| (i.as_str(), v))
     }
     /// returns a parser that will combine the results of this and the given parser
     /// into a tuple
@@ -100,7 +100,7 @@ impl Parser for char {
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, char> {
         let mut i2 = i.clone();
         match i2.next() {
-            Some(c) if c == *self => Ok((i2, *self)),
+            Some(c) if c == *self => Ok((i2, *self, None)),
             _ => i2.err_p_r(self),
         }
     }
@@ -122,9 +122,9 @@ where
 {
     type Out = (A::Out, B::Out);
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (i, v1) = self.a.parse(i)?;
-        let (i, v2) = self.b.parse(&i)?;
-        Ok((i, (v1, v2)))
+        let (i, v1, c1) = self.a.parse(i)?;
+        let (i, v2, e) = self.b.parse(&i).map_err(|e| e.cont(c1))?;
+        Ok((i, (v1, v2), e))
     }
     fn expected(&self) -> Expected {
         Expected::first(self.a.expected(), self.b.expected())
@@ -144,9 +144,9 @@ where
 {
     type Out = A::Out;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (i, v1) = self.a.parse(i)?;
-        let (i, _) = self.b.parse(&i)?;
-        Ok((i, v1))
+        let (i, v1, c1) = self.a.parse(i)?;
+        let (i, _, ct) = self.b.parse(&i).map_err(|e| e.cont(c1))?;
+        Ok((i, v1, ct))
     }
     fn expected(&self) -> Expected {
         Expected::first(self.a.expected(), self.b.expected())
@@ -166,9 +166,9 @@ where
 {
     type Out = B::Out;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (i, _) = self.a.parse(i)?;
-        let (i, v2) = self.b.parse(&i)?;
-        Ok((i, v2))
+        let (i, _, c1) = self.a.parse(i)?;
+        let (i, v2, ex) = self.b.parse(&i).map_err(|e| e.cont(c1))?;
+        Ok((i, v2, ex))
     }
     fn expected(&self) -> Expected {
         Expected::first(self.a.expected(), self.b.expected())
@@ -189,10 +189,10 @@ where
     type Out = V;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, V> {
         match self.a.parse(i) {
-            Ok((r, v)) => Ok((r, v)),
+            Ok((r, v, e)) => Ok((r, v, e)),
             Err(e) if e.is_break() => Err(e),
             Err(e) => match self.b.parse(i) {
-                Ok((r, v)) => Ok((r, v)),
+                Ok((r, v, ex)) => Ok((r, v, ex)),
                 Err(e2) if e2.is_break() => Err(e2),
                 Err(e2) => match e.partial_cmp(&e2) {
                     Some(Ordering::Equal) | None => Err(longer(e, e2).wrap(i.err_p(self))),
@@ -216,8 +216,8 @@ pub struct Map<A: Parser, B, F: Fn(A::Out) -> B> {
 impl<A: Parser<Out = AV>, AV, B, F: Fn(A::Out) -> B> Parser for Map<A, B, F> {
     type Out = B;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
-        let (ri, v) = self.a.parse(i)?;
-        Ok((ri, (self.f)(v)))
+        let (ri, v, ex) = self.a.parse(i)?;
+        Ok((ri, (self.f)(v), ex))
     }
     fn expected(&self) -> Expected {
         self.a.expected()
@@ -233,9 +233,9 @@ pub struct TryMap<A: Parser, B, F: Fn(A::Out) -> Result<B, Expected>> {
 impl<A: Parser, B, F: Fn(A::Out) -> Result<B, Expected>> Parser for TryMap<A, B, F> {
     type Out = B;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, B> {
-        let (ri, v) = self.a.parse(i)?;
+        let (ri, v, ct) = self.a.parse(i)?;
         match (self.f)(v) {
-            Ok(v2) => Ok((ri, v2)),
+            Ok(v2) => Ok((ri, v2, ct)),
             Err(e) => ri.err_ex_r(e),
         }
     }
@@ -251,8 +251,8 @@ pub struct As<A: Parser, R: Clone> {
 impl<A: Parser, R: Clone> Parser for As<A, R> {
     type Out = R;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, R> {
-        let (ri, _) = self.a.parse(it)?;
-        Ok((ri, self.r.clone()))
+        let (ri, _, ct) = self.a.parse(it)?;
+        Ok((ri, self.r.clone(), ct))
     }
     fn expected(&self) -> Expected {
         self.a.expected()
