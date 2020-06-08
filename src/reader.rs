@@ -122,11 +122,12 @@ pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static s
     let mut i = it.clone();
     let mut s_it = tg.chars();
     while let Some(c) = s_it.next() {
+        let i2 = it.clone();
         match i.next() {
-            None => return i.err_r(tg),
+            None => return i2.err_r(tg),
             Some(ic) => {
                 if ic != c {
-                    return i.err_r(tg);
+                    return i2.err_r(tg);
                 }
             }
         }

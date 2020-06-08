@@ -97,6 +97,31 @@ impl ParseError {
         }
     }
 
+    pub fn print_on(&self, s: &str) -> String {
+        let (pstr, ids): (String, String) = match self.index {
+            Some(i) => (s[i..].chars().take(10).collect(), i.to_string()),
+            None => ("EOI".to_string(), "EOI".to_string()),
+        };
+
+        format!(
+            "    At {},{},{}: Expected {} -- Found {}\n",
+            ids, self.line, self.col, self.exp, pstr,
+        )
+    }
+
+    pub fn print_on_d(&self, s: &str) -> String {
+        let mut res = self.print_on(s);
+        if let Some(ref c) = self.child {
+            res.push_str(&c.print_on(s));
+        }
+        res
+    }
+    pub fn deep_print(&self, s: &str) -> String {
+        let mut res = "\nErr :\n".to_string();
+        res.push_str(&self.print_on_d(s));
+        res
+    }
+
     pub fn wrap(mut self, ne: Self) -> Self {
         match self.child {
             Some(c) => self.child = Some(Box::new(c.wrap(ne))),
