@@ -8,7 +8,7 @@ use crate::tuple::*;
 use std::convert::TryFrom;
 
 pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
-    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), take_char))
+    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
         .parse(it)
 }
 
@@ -17,7 +17,7 @@ pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
 /// assert_eq!(common_str.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
 /// ```
 pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    '"'.ig_then(chars_until(or(common_esc, take_char), '"').map(|(a, _)| a))
+    '"'.ig_then(chars_until(or(common_esc, Any.one()), '"').map(|(a, _)| a))
         .parse(it)
 }
 
@@ -43,7 +43,7 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
             Some('_') => {}
             _ => {
                 if added {
-                    return Ok((it2, res));
+                    return Ok((it2, res, None));
                 }
                 return it2.err_r("[0-9]*");
             }
@@ -66,9 +66,9 @@ pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
         _ => return it.err_r("Common int"),
     };
 
-    let (it3, n) = common_uint(&it2)?;
+    let (it3, n, _) = common_uint(&it2)?;
     let n: isize = isize::try_from(n).map_err(|_| it3.err("Int Too Big"))?;
-    Ok((it3, n * minus))
+    Ok((it3, n * minus, None))
 }
 
 /// ```
@@ -98,7 +98,7 @@ pub fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
                 res += (((v as i64) as f64) - 48.0) * exp;
                 exp *= 0.1;
             }
-            _ => return Ok((it2, res)),
+            _ => return Ok((it2, res, None)),
         }
     }
 }
@@ -106,9 +106,9 @@ pub fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
 fn do_exponent<'a>(mut n: f64, i: &LCChars<'a>) -> ParseRes<'a, f64> {
     let mut it = i.clone();
     if it.next() != Some('e') {
-        return Ok((i.clone(), n));
+        return Ok((i.clone(), n, None));
     }
-    let (it2, exp) = common_int(&it)?;
+    let (it2, exp, _) = common_int(&it)?;
     if exp > 0 {
         for _ in 0..exp {
             n *= 10.;
@@ -119,7 +119,7 @@ fn do_exponent<'a>(mut n: f64, i: &LCChars<'a>) -> ParseRes<'a, f64> {
             n /= 10.;
         }
     }
-    Ok((it2, n))
+    Ok((it2, n, None))
 }
 
 /// ```rust
@@ -134,12 +134,12 @@ fn do_exponent<'a>(mut n: f64, i: &LCChars<'a>) -> ParseRes<'a, f64> {
 /// assert_eq!(r, 1.234);
 /// ```
 pub fn common_float<'a>(it: &LCChars<'a>) -> ParseRes<'a, f64> {
-    let (it2, n) = common_int(it)?;
+    let (it2, n, _) = common_int(it)?;
     let minus = if n >= 0 { 1. } else { -1. };
     let it3 = it2.clone();
     let mut nf = n as f64;
 
-    let (it3, dp) = dot_part(&it3)?;
+    let (it3, dp, _) = dot_part(&it3)?;
     nf += dp * minus;
     do_exponent(nf, &it3)
 }

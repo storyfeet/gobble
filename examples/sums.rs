@@ -56,7 +56,7 @@ fn main() -> Result<(), std::io::Error> {
             Err(e) => return Err(e),
             _ => {}
         }
-        match parse_expr.parse_s(&s) {
+        match parse_expr.then_ig(("\n", eoi)).parse_s(&s) {
             Ok(v) => println!("{:?}", v),
             Err(e) => println!("{}", e.deep_print(&s)),
         }

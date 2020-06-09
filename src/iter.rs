@@ -82,9 +82,9 @@ impl<'a> Iterator for LCChars<'a> {
 }
 
 pub fn index<'a>(it: &LCChars<'a>) -> ParseRes<'a, Option<usize>> {
-    return Ok((it.clone(), it.index()));
+    return Ok((it.clone(), it.index(), None));
 }
 
 pub fn line_col<'a>(it: &LCChars<'a>) -> ParseRes<'a, (usize, usize)> {
-    return Ok((it.clone(), (it.l, it.c)));
+    return Ok((it.clone(), (it.l, it.c), None));
 }

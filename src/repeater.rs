@@ -3,7 +3,7 @@ use crate::iter::LCChars;
 use crate::ptrait::*;
 
 #[derive(Clone)]
-pub struct RepeatN<A: Parser> {
+pub struct Exact<A: Parser> {
     n: usize,
     a: A,
 }
@@ -11,29 +11,29 @@ pub struct RepeatN<A: Parser> {
 /// ```
 /// use gobble::*;
 /// let it = LCChars::str("hello fish car cat");
-/// let (_,v) = do_repeat_n(&it,&common_ident.then_ig(" "),3).unwrap();
+/// let (_,v) = do_exact(&it,&common_ident.then_ig(" "),3).unwrap();
 /// assert_eq!(v,vec!["hello","fish","car"]);
 ///
 /// ```
-pub fn do_repeat_n<'a, A: Parser>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<A::Out>> {
+pub fn do_exact<'a, A: Parser>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, Vec<A::Out>> {
     let mut i = it.clone();
     let mut res = Vec::new();
     for _ in 0..n {
         match a.parse(&i) {
-            Ok((it2, pres)) => {
+            Ok((it2, pres, _)) => {
                 res.push(pres);
                 i = it2;
             }
             Err(e) => return Err(e.wrap(i.err_p(a))),
         }
     }
-    return Ok((i, res));
+    return Ok((i, res, None));
 }
 
-impl<A: Parser> Parser for RepeatN<A> {
+impl<A: Parser> Parser for Exact<A> {
     type Out = Vec<A::Out>;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Vec<A::Out>> {
-        do_repeat_n(it, &self.a, self.n)
+        do_exact(it, &self.a, self.n)
     }
 }
 
@@ -50,9 +50,9 @@ where
 {
     type Out = (Vec<A::Out>, B::Out, Vec<C::Out>);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (ni, (va, b)) = do_repeat_until(it, &self.a, &self.b)?;
-        let (fi, vc) = do_repeat_n(&ni, &self.c, va.len())?;
-        Ok((fi, (va, b, vc)))
+        let (ni, (va, b), _) = do_repeat_until(it, &self.a, &self.b)?;
+        let (fi, vc, _) = do_exact(&ni, &self.c, va.len())?;
+        Ok((fi, (va, b, vc), None))
     }
 }
 
@@ -89,93 +89,141 @@ where
 /// let v = p.parse_s("7,6,5,4,3,2,1").unwrap();
 /// assert_eq!(v,vec![7,6,5,4,3]);
 /// ```
-pub fn repeat_n<A: Parser>(a: A, n: usize) -> RepeatN<A> {
-    RepeatN { a, n }
+#[deprecated(since = "0.4.0", note = "Use 'exact' instead")]
+pub fn repeat_n<A: Parser>(a: A, n: usize) -> Exact<A> {
+    Exact { a, n }
+}
+
+pub fn exact<A: Parser>(a: A, n: usize) -> Exact<A> {
+    Exact { a, n }
+}
+
+fn do_sep<'a, A: Parser, B: Parser>(
+    i: &LCChars<'a>,
+    a: &A,
+    b: &B,
+    min: usize,
+) -> ParseRes<'a, Vec<A::Out>> {
+    let mut res = Vec::new();
+    let mut ri = i.clone();
+    loop {
+        ri = match a.parse(&ri) {
+            Ok((r, v, _)) => {
+                res.push(v);
+                r
+            }
+            Err(_) => {
+                if res.len() == 0 && min == 0 {
+                    return Ok((ri, res, Some(a.expected())));
+                }
+                return i.err_p_r(a);
+            }
+        };
+        //try sep if not found, return
+        ri = match b.parse(&ri) {
+            Ok((r, _, _)) => r,
+            Err(e) => {
+                if res.len() < min {
+                    return ri.err_p_r(b);
+                } else {
+                    return Ok((ri, res, Some(e.exp)));
+                }
+            }
+        };
+    }
 }
 
 #[derive(Clone)]
-pub struct Separated<A: Parser, B: Parser> {
+pub struct SepStar<A: Parser, B: Parser> {
     a: A,
     b: B,
-    min: usize,
 }
 
-impl<A, B> Parser for Separated<A, B>
+impl<A, B> Parser for SepStar<A, B>
 where
     A: Parser,
     B: Parser,
 {
     type Out = Vec<A::Out>;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let mut res = Vec::new();
-        let mut ri = match self.a.parse(i) {
-            Ok((r, v)) => {
-                res.push(v);
-                r
-            }
-            Err(e) => {
-                if res.len() >= self.min {
-                    return Ok((i.clone(), res));
-                } else {
-                    return i.err_p_r(&self.a);
-                }
-            }
-        };
-        loop {
-            //try sep if not found, return
-            ri = match self.b.parse(&ri) {
-                Ok((r, _)) => r,
-                Err(_) => return Ok((ri, res)),
-            };
-
-            ri = match self.a.parse(&ri) {
-                Ok((r, v)) => {
-                    res.push(v);
-                    r
-                }
-                Err(e) => {
-                    return i.err_p_r(&self.a);
-                }
-            };
-        }
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_sep(it, &self.a, &self.b, 0)
     }
 }
 
-pub fn sep<A: Parser, B: Parser>(a: A, b: B, min: usize) -> Separated<A, B> {
-    Separated { a, b, min }
+pub fn sep<A: Parser, B: Parser>(a: A, b: B) -> SepStar<A, B> {
+    SepStar { a, b }
+}
+pub fn sep_plus<A: Parser, B: Parser>(a: A, b: B) -> SepPlus<A, B> {
+    SepPlus { a, b }
 }
 
 #[derive(Clone)]
-pub struct Repeater<A> {
+pub struct SepPlus<A: Parser, B: Parser> {
     a: A,
-    min: usize,
+    b: B,
 }
 
-impl<A: Parser> Parser for Repeater<A> {
+impl<A, B> Parser for SepPlus<A, B>
+where
+    A: Parser,
+    B: Parser,
+{
     type Out = Vec<A::Out>;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let mut ri = i.clone();
-        let mut res = Vec::new();
-        loop {
-            ri = match self.a.parse(&ri) {
-                Ok((r, v)) => {
-                    res.push(v);
-                    r
-                }
-                Err(e) => {
-                    if res.len() < self.min {
-                        return i.err_p_r(&self.a);
-                    } else {
-                        return Ok((ri, res));
-                    }
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_sep(it, &self.a, &self.b, 1)
+    }
+}
+
+pub fn do_rep<'a, A: Parser>(i: &LCChars<'a>, a: &A, min: usize) -> ParseRes<'a, Vec<A::Out>> {
+    let mut ri = i.clone();
+    let mut res = Vec::new();
+    loop {
+        ri = match a.parse(&ri) {
+            Ok((r, v, _)) => {
+                res.push(v);
+                r
+            }
+            Err(_) => {
+                if res.len() < min {
+                    return i.err_p_r(a);
+                } else {
+                    return Ok((ri, res, Some(a.expected())));
                 }
             }
         }
     }
 }
 
-pub fn repeat<A: Parser>(a: A, min: usize) -> Repeater<A> {
-    Repeater { a, min }
+#[derive(Clone)]
+pub struct RepStar<A> {
+    a: A,
+}
+
+impl<A: Parser> Parser for RepStar<A> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_rep(i, &self.a, 0)
+    }
+}
+
+pub fn rep<A: Parser>(a: A) -> RepStar<A> {
+    RepStar { a }
+}
+
+#[derive(Clone)]
+pub struct RepPlus<A> {
+    a: A,
+}
+
+impl<A: Parser> Parser for RepPlus<A> {
+    type Out = Vec<A::Out>;
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_rep(i, &self.a, 1)
+    }
+}
+
+pub fn rep_plus<A: Parser>(a: A) -> RepPlus<A> {
+    RepPlus { a }
 }
 
 fn do_repeat_until<'a, A: Parser, B: Parser>(
@@ -186,18 +234,16 @@ fn do_repeat_until<'a, A: Parser, B: Parser>(
     let mut ri = it.clone();
     let mut res = Vec::new();
     loop {
-        if let Ok((r, v)) = b.parse(&ri) {
-            return Ok((r, (res, v)));
-        }
+        let b_err = match b.parse(&ri) {
+            Ok((r, v, _)) => return Ok((r, (res, v), None)),
+            Err(e) => e,
+        };
         ri = match a.parse(&ri) {
-            Ok((r, v)) => {
+            Ok((r, v, _)) => {
                 res.push(v);
                 r
             }
-            Err(e) => match b.parse(&ri) {
-                Ok((r, bv)) => return Ok((r, (res, bv))),
-                Err(e2) => return Err(longer(e, e2).wrap(ri.err("Repeat"))),
-            },
+            Err(e) => return Err(longer(e, b_err).wrap(ri.err("Repeat"))),
         }
     }
 }
@@ -241,23 +287,24 @@ where
         let mut ri = i.clone();
         let mut res = Vec::new();
         match self.c.parse(&ri) {
-            Ok((r, _)) => return Ok((r, res)),
+            Ok((r, _, _)) => return Ok((r, res, None)),
             Err(_) => {}
         }
         loop {
             ri = match self.a.parse(&ri) {
-                Ok((r, v)) => {
+                Ok((r, v, _)) => {
                     res.push(v);
                     r
                 }
                 Err(e) => return Err(e),
             };
+            let c_err = match self.c.parse(&ri) {
+                Ok((r, _, _)) => return Ok((r, res, None)),
+                Err(e) => e,
+            };
             ri = match self.b.parse(&ri) {
-                Ok((r, _)) => r,
-                Err(e) => match self.c.parse(&ri) {
-                    Ok((r, _)) => return Ok((r, res)),
-                    Err(e2) => return Err(longer(e, e2).wrap(ri.err_p(self))),
-                },
+                Ok((r, _, _)) => r,
+                Err(e) => return Err(longer(e, c_err).wrap(ri.err_p(self))),
             }
         }
     }

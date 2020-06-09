@@ -32,7 +32,8 @@ pub fn is_hex_digit(c: char) -> bool {
 pub fn js_char() -> impl Parser<Out = char> {
     or3(
         "\\u".ig_then(
-            take_n(4)
+            HexDigit
+                .exact(4)
                 .try_map(|v| {
                     let n: u32 =
                         u32::from_str_radix(&v, 16).map_err(|_| Expected::Str("4 hex digits"))?;
@@ -48,7 +49,7 @@ pub fn js_char() -> impl Parser<Out = char> {
             't'.asv('\t'),
             "\"\\".one(),
         )),
-        take_char,
+        Any.one(),
     )
 }
 

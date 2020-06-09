@@ -34,7 +34,7 @@ impl<P: Parser> Parser for PPos<P> {
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (line, col) = it.lc();
         let start = it.index().ok_or(it.err_p(&self.p))?;
-        let (rit, r) = self.p.parse(it)?;
+        let (rit, r, pex) = self.p.parse(it)?;
         let fin = rit.index();
         Ok((
             rit,
@@ -45,6 +45,7 @@ impl<P: Parser> Parser for PPos<P> {
                 fin,
                 ob: r,
             },
+            pex,
         ))
     }
 }
@@ -88,17 +89,17 @@ pub fn ws(min: usize) -> impl Parser<Out = ()> {
 impl<P: Parser> Parser for KeyWord<P> {
     type Out = P::Out;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, P::Out> {
-        let (t2, r) = self.p.parse(it)?;
+        let (t2, r, _) = self.p.parse(it)?;
         match t2.clone().next() {
             Some(c) => {
                 let al = (Alpha, NumDigit, '_');
                 if al.char_bool(c) {
                     t2.err_ex_r(Expected::except(al.expected()))
                 } else {
-                    Ok((t2, r))
+                    Ok((t2, r, None))
                 }
             }
-            None => Ok((t2, r)),
+            None => Ok((t2, r, None)),
         }
     }
 }
@@ -132,83 +133,19 @@ pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static s
             }
         }
     }
-    Ok((i, tg))
-}
-
-impl<F> Parser for Take<F>
-where
-    F: CharBool,
-{
-    type Out = ();
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
-        let mut n = 0;
-        let mut i = i.clone();
-        let mut i2 = i.clone();
-        while let Some(c) = i.next() {
-            if !self.f.char_bool(c) {
-                if n < self.min {
-                    return i.err_r("not enough to take");
-                }
-                return Ok((i2, ()));
-            }
-            n += 1;
-            i2.next();
-        }
-        if n < self.min {
-            return i.err_r("End of str before end of take");
-        }
-        Ok((i2, ()))
-    }
-}
-
-#[derive(Clone)]
-pub struct Take<F> {
-    f: F,
-    min: usize,
-}
-
-pub fn take<F>(f: F, min: usize) -> Take<F>
-where
-    F: Fn(char) -> bool,
-{
-    Take { f, min }
+    Ok((i, tg, None))
 }
 
 pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
     let mut r = i.clone();
     if r.next() == None {
-        return Ok((r, ()));
+        return Ok((r, (), None));
     }
-    i.err_r("Still More Input")
+    i.err_ex_r(Expected::EOI)
 }
 
 pub fn to_end() -> impl Parser<Out = ()> {
     WS.any().ig_then(eoi)
-}
-
-pub struct TakeN {
-    n: usize,
-}
-
-impl Parser for TakeN {
-    type Out = String;
-    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, String> {
-        let mut res = String::new();
-        let mut it = i.clone();
-        for _ in 0..self.n {
-            res.push(it.next().ok_or(it.err("Any n chars"))?);
-        }
-        Ok((it, res))
-    }
-}
-pub fn take_n(n: usize) -> TakeN {
-    TakeN { n }
-}
-
-pub fn take_char<'a>(i: &LCChars<'a>) -> ParseRes<'a, char> {
-    let mut ri = i.clone();
-    let c = ri.next().ok_or(ri.err("Any char"))?;
-    Ok((ri, c))
 }
 
 pub struct Peek<P: Parser> {
@@ -218,8 +155,8 @@ pub struct Peek<P: Parser> {
 impl<P: Parser> Parser for Peek<P> {
     type Out = P::Out;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, P::Out> {
-        let (_, v) = self.p.parse(it)?;
-        Ok((it.clone(), v))
+        let (_, v, c) = self.p.parse(it)?;
+        Ok((it.clone(), v, c))
     }
 }
 
@@ -239,11 +176,11 @@ impl<A: Parser<Out = char>, B: Parser> Parser for CharsUntil<A, B> {
         let mut it = it.clone();
         loop {
             //let it2 = it.clone();
-            if let Ok((i, bv)) = self.b.parse(&it) {
-                return Ok((i, (res, bv)));
+            if let Ok((i, bv, c1)) = self.b.parse(&it) {
+                return Ok((i, (res, bv), c1));
             }
             it = match self.a.parse(&it) {
-                Ok((i, c)) => {
+                Ok((i, c, _)) => {
                     res.push(c);
                     i
                 }
@@ -266,10 +203,10 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
     type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         let (mut nit, mut res) = match self.a.parse(it) {
-            Ok((it2, ss)) => (it2, ss.into()),
+            Ok((it2, ss, _)) => (it2, ss.into()),
             Err(e) => {
                 if self.min == 0 {
-                    return Ok((it.clone(), String::new()));
+                    return Ok((it.clone(), String::new(), Some(self.a.expected())));
                 } else {
                     return Err(e);
                 }
@@ -278,7 +215,7 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
         let mut done = 1;
         loop {
             match self.a.parse(&nit) {
-                Ok((it, r)) => {
+                Ok((it, r, _)) => {
                     res.push_str(r.as_ref());
                     nit = it;
                 }
@@ -286,7 +223,7 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
                     if done < self.min {
                         return Err(e);
                     } else {
-                        return Ok((nit, res));
+                        return Ok((nit, res, Some(self.a.expected())));
                     }
                 }
             }

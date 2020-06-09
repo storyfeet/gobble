@@ -205,6 +205,12 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.4.0: Breaking WIP
+* Now uses star and plus for repeats
+* Now requires successes to declare if they could have continued with correct input
+* Now has clearer errors containing info on how to find them, and what they expect next 
+
+
 ### v 0.3.0: Breaking Changes 
 *Now Parser output is a trait associated type (Out)
 use ```impl Parser<Out=V>``` instead of ```impl Parser<V>``` and most things should work

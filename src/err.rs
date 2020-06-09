@@ -7,6 +7,7 @@ use thiserror::*;
 
 #[derive(Debug, PartialEq, Clone, Error)]
 pub enum Expected {
+    EOI,
     Unknown,
     Char(char),
     WS,
@@ -21,6 +22,7 @@ impl fmt::Display for Expected {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Expected::*;
         match self {
+            EOI => write!(f, "EOI"),
             Unknown => write!(f, "Unknown"),
             Char(c) => write!(f, "Char:\"{}\"", c),
             WS => write!(f, "WhiteSpace"),
@@ -73,7 +75,18 @@ pub fn longer(mut a: ParseError, b: ParseError) -> ParseError {
         Some(Ordering::Greater) => a,
         Some(Ordering::Less) => b,
         _ => {
-            a.exp = Expected::OneOf(vec![a.exp, b.exp]);
+            let rex = match (a.exp, b.exp) {
+                (Expected::OneOf(mut av), Expected::OneOf(bv)) => {
+                    av.extend(bv);
+                    Expected::OneOf(av)
+                }
+                (Expected::OneOf(mut v), e) | (e, Expected::OneOf(mut v)) => {
+                    v.push(e);
+                    Expected::OneOf(v)
+                }
+                (a, b) => Expected::OneOf(vec![a, b]),
+            };
+            a.exp = rex;
             a
         }
     }
@@ -129,7 +142,7 @@ impl ParseError {
         };
 
         format!(
-            "    At {},{},{}: Expected {} -- Found {:?}\n",
+            "    At i:{},l:{},c:{} -- Expected {} -- Found {:?}\n",
             ids, self.line, self.col, self.exp, pstr,
         )
     }

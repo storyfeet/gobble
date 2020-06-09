@@ -38,6 +38,10 @@ pub trait CharBool: Sized {
     fn except<E: CharBool>(self, e: E) -> CharsExcept<Self, E> {
         CharsExcept { a: self, e }
     }
+
+    fn exact(self, n: usize) -> CBExact<Self> {
+        CBExact { a: self, n }
+    }
 }
 
 /// [a-z][A-Z]
@@ -241,7 +245,7 @@ pub fn do_one_char<'a, CB: CharBool>(i: &LCChars<'a>, cb: &CB) -> ParseRes<'a, c
     let mut i2 = i.clone();
     let ic = i2.next().ok_or(i2.err_ex(cb.expected()))?;
     if cb.char_bool(ic) {
-        Ok((i2, ic))
+        Ok((i2, ic, None))
     } else {
         i2.err_ex_r(cb.expected())
     }
@@ -274,7 +278,7 @@ pub fn do_chars<'a, CB: CharBool>(it: &LCChars<'a>, cb: &CB, min: usize) -> Pars
             }
             Some(_) | None => {
                 if res.len() >= min {
-                    return Ok((it2, res));
+                    return Ok((it2, res, None));
                 } else {
                     return it.err_ex_r(cb.expected());
                 }
@@ -307,6 +311,31 @@ impl<A: CharBool, E: CharBool> CharBool for CharsExcept<A, E> {
     }
     fn expected(&self) -> Expected {
         self.a.expected().or(Expected::except(self.e.expected()))
+    }
+}
+
+pub struct CBExact<A: CharBool> {
+    a: A,
+    n: usize,
+}
+
+pub fn do_cb_exact<'a, A: CharBool>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, String> {
+    let mut res = String::new();
+    let mut it = it.clone();
+    for _ in 0..n {
+        let i2 = it.clone();
+        match it.next() {
+            Some(c) if a.char_bool(c) => res.push(c),
+            Some(_) | None => return i2.err_ex_r(a.expected()),
+        }
+    }
+    Ok((it, res, None))
+}
+
+impl<A: CharBool> Parser for CBExact<A> {
+    type Out = String;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        do_cb_exact(it, &self.a, self.n)
     }
 }
 
