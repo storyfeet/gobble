@@ -1,3 +1,4 @@
+use crate::chars::CharBool;
 use crate::err::{Expected, ParseError};
 use crate::ptrait::{ParseRes, Parser};
 use std::str::{CharIndices, Chars};
@@ -44,6 +45,18 @@ impl<'a> LCChars<'a> {
     }
     pub fn err_p_r<P: Parser, V>(&self, p: &P) -> Result<V, ParseError> {
         Err(self.err_p(p))
+    }
+    pub fn err_p_o<P: Parser>(&self, p: &P) -> Option<ParseError> {
+        Some(self.err_p(p))
+    }
+
+    pub fn err_cb_o<C: CharBool>(&self, c: &C) -> Option<ParseError> {
+        Some(ParseError::expect(
+            c.expected(),
+            self.index(),
+            self.l,
+            self.c,
+        ))
     }
 
     pub fn err_ex(&self, e: Expected) -> ParseError {

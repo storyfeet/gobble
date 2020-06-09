@@ -11,7 +11,7 @@ pub struct Exact<A: Parser> {
 /// ```
 /// use gobble::*;
 /// let it = LCChars::str("hello fish car cat");
-/// let (_,v) = do_exact(&it,&common_ident.then_ig(" "),3).unwrap();
+/// let (_,v,_) = do_exact(&it,&common_ident.then_ig(" "),3).unwrap();
 /// assert_eq!(v,vec!["hello","fish","car"]);
 ///
 /// ```
@@ -114,7 +114,8 @@ fn do_sep<'a, A: Parser, B: Parser>(
             }
             Err(_) => {
                 if res.len() == 0 && min == 0 {
-                    return Ok((ri, res, Some(a.expected())));
+                    let eo = ri.err_p_o(a);
+                    return Ok((ri, res, eo));
                 }
                 return i.err_p_r(a);
             }
@@ -126,7 +127,7 @@ fn do_sep<'a, A: Parser, B: Parser>(
                 if res.len() < min {
                     return ri.err_p_r(b);
                 } else {
-                    return Ok((ri, res, Some(e.exp)));
+                    return Ok((ri, res, Some(e)));
                 }
             }
         };
@@ -187,7 +188,8 @@ pub fn do_rep<'a, A: Parser>(i: &LCChars<'a>, a: &A, min: usize) -> ParseRes<'a,
                 if res.len() < min {
                     return i.err_p_r(a);
                 } else {
-                    return Ok((ri, res, Some(a.expected())));
+                    let eo = ri.err_p_o(a);
+                    return Ok((ri, res, eo));
                 }
             }
         }
@@ -331,7 +333,7 @@ pub mod test {
     use crate::*;
     #[test]
     pub fn test_reflecter() {
-        let (av, b, cv) = reflect(s_("("), (Alpha, NumDigit).min_n(1), s_(")"))
+        let (av, b, cv) = reflect(s_("("), (Alpha, NumDigit).plus(), s_(")"))
             .parse_s("(((help)))")
             .unwrap();
 

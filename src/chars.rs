@@ -8,25 +8,36 @@ use crate::skip;
 pub trait CharBool: Sized {
     fn char_bool(&self, c: char) -> bool;
     fn expected(&self) -> Expected {
-        return Expected::Unknown;
+        Expected::Str(std::any::type_name::<Self>())
     }
     fn one(self) -> OneChar<Self> {
         OneChar { cb: self }
     }
-    fn any(self) -> Chars<Self> {
-        Chars { cb: self, min: 0 }
+    #[deprecated(since = "0.4.0", note = "Use 'star' instead")]
+    fn any(self) -> CharStar<Self> {
+        CharStar { cb: self }
+    }
+    fn star(self) -> CharStar<Self> {
+        CharStar { cb: self }
     }
     /// min_n not min to avoid ambiguity with std::cmp::Ord
-    fn min_n(self, min: usize) -> Chars<Self> {
-        Chars { cb: self, min }
+    fn min_n(self, min: usize) -> CharMin<Self> {
+        CharMin { cb: self, min }
     }
 
-    fn skip(self) -> skip::Skip<Self> {
-        skip::skip_c(self)
+    fn plus(self) -> CharPlus<Self> {
+        CharPlus { cb: self }
+    }
+    fn skip_star(self) -> skip::CharSkip<Self> {
+        skip::CharSkip { cb: self }
     }
 
-    fn skip_min(self, min: usize) -> skip::SkipMin<Self> {
-        skip::skip_while(self, min)
+    fn skip_plus(self) -> skip::CharSkipPlus<Self> {
+        skip::CharSkipPlus { cb: self }
+    }
+
+    fn skip_exact(self, n: usize) -> skip::CharSkipExact<Self> {
+        skip::CharSkipExact { cb: self, n }
     }
     ///```rust
     /// use gobble::*;
@@ -39,8 +50,8 @@ pub trait CharBool: Sized {
         CharsExcept { a: self, e }
     }
 
-    fn exact(self, n: usize) -> CBExact<Self> {
-        CBExact { a: self, n }
+    fn exact(self, n: usize) -> CharExact<Self> {
+        CharExact { a: self, n }
     }
 }
 
@@ -247,7 +258,7 @@ pub fn do_one_char<'a, CB: CharBool>(i: &LCChars<'a>, cb: &CB) -> ParseRes<'a, c
     if cb.char_bool(ic) {
         Ok((i2, ic, None))
     } else {
-        i2.err_ex_r(cb.expected())
+        i.err_ex_r(cb.expected())
     }
 }
 
@@ -266,45 +277,63 @@ pub fn one_char<C: CharBool>(cb: C) -> OneChar<C> {
     OneChar { cb }
 }
 
-pub fn do_chars<'a, CB: CharBool>(it: &LCChars<'a>, cb: &CB, min: usize) -> ParseRes<'a, String> {
+pub fn do_chars<'a, CB: CharBool>(
+    it: &LCChars<'a>,
+    cb: &CB,
+    min: usize,
+    exact: bool,
+) -> ParseRes<'a, String> {
     let mut res = String::new();
     let mut it = it.clone();
     loop {
         let it2 = it.clone();
-        let n = it.next();
-        match n {
+        match it.next() {
             Some(c) if cb.char_bool(c) => {
                 res.push(c);
             }
             Some(_) | None => {
                 if res.len() >= min {
-                    return Ok((it2, res, None));
+                    let eo = it2.err_cb_o(cb);
+                    return Ok((it2, res, eo));
                 } else {
-                    return it.err_ex_r(cb.expected());
+                    return it2.err_ex_r(cb.expected());
                 }
             }
         }
+        if res.len() == min && exact {
+            return Ok((it, res, None));
+        }
     }
 }
-pub struct Chars<C: CharBool> {
-    min: usize,
+#[derive(Clone)]
+pub struct CharStar<C: CharBool> {
     cb: C,
 }
 
-impl<CB: CharBool> Parser for Chars<CB> {
+impl<CB: CharBool> Parser for CharStar<CB> {
     type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
-        do_chars(it, &self.cb, self.min)
+        do_chars(it, &self.cb, 0, false)
     }
 }
-pub fn chars<CB: CharBool>(cb: CB, min: usize) -> Chars<CB> {
-    Chars { cb, min }
+
+#[derive(Clone)]
+pub struct CharPlus<C: CharBool> {
+    cb: C,
+}
+
+impl<CB: CharBool> Parser for CharPlus<CB> {
+    type Out = String;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        do_chars(it, &self.cb, 1, false)
+    }
 }
 
 pub struct CharsExcept<A: CharBool, E: CharBool> {
     a: A,
     e: E,
 }
+
 impl<A: CharBool, E: CharBool> CharBool for CharsExcept<A, E> {
     fn char_bool(&self, c: char) -> bool {
         self.a.char_bool(c) && !self.e.char_bool(c)
@@ -314,28 +343,29 @@ impl<A: CharBool, E: CharBool> CharBool for CharsExcept<A, E> {
     }
 }
 
-pub struct CBExact<A: CharBool> {
+#[derive(Clone)]
+pub struct CharExact<A: CharBool> {
     a: A,
     n: usize,
 }
 
-pub fn do_cb_exact<'a, A: CharBool>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a, String> {
-    let mut res = String::new();
-    let mut it = it.clone();
-    for _ in 0..n {
-        let i2 = it.clone();
-        match it.next() {
-            Some(c) if a.char_bool(c) => res.push(c),
-            Some(_) | None => return i2.err_ex_r(a.expected()),
-        }
-    }
-    Ok((it, res, None))
-}
-
-impl<A: CharBool> Parser for CBExact<A> {
+impl<A: CharBool> Parser for CharExact<A> {
     type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
-        do_cb_exact(it, &self.a, self.n)
+        do_chars(it, &self.a, self.n, true)
+    }
+}
+
+#[derive(Clone)]
+pub struct CharMin<A: CharBool> {
+    cb: A,
+    min: usize,
+}
+
+impl<A: CharBool> Parser for CharMin<A> {
+    type Out = String;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        do_chars(it, &self.cb, self.min, false)
     }
 }
 

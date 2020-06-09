@@ -22,7 +22,7 @@ pub enum Value {
 }
 
 fn wsn() -> impl Parser<Out = ()> {
-    skip_while(" \t\n\r", 0)
+    " \t\n\r".skip_star()
 }
 
 pub fn is_hex_digit(c: char) -> bool {

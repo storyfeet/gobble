@@ -22,7 +22,7 @@ pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
 }
 
 pub fn common_ident<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    string_2_parts(Alpha.min_n(1), (Alpha, NumDigit, '_').any()).parse(it)
+    string_2_parts(Alpha.plus(), (Alpha, NumDigit, '_').star()).parse(it)
 }
 
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {

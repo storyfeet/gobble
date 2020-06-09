@@ -8,7 +8,6 @@ use thiserror::*;
 #[derive(Debug, PartialEq, Clone, Error)]
 pub enum Expected {
     EOI,
-    Unknown,
     Char(char),
     WS,
     CharIn(&'static str),
@@ -23,7 +22,6 @@ impl fmt::Display for Expected {
         use Expected::*;
         match self {
             EOI => write!(f, "EOI"),
-            Unknown => write!(f, "Unknown"),
             Char(c) => write!(f, "Char:\"{}\"", c),
             WS => write!(f, "WhiteSpace"),
             CharIn(s) => write!(f, "Char In {:?}", s),
@@ -57,7 +55,7 @@ impl Expected {
     }
     pub fn is_nil(&self) -> bool {
         match self {
-            Expected::Unknown | Expected::WS => true,
+            Expected::WS => true,
             _ => false,
         }
     }
@@ -125,12 +123,9 @@ impl ParseError {
         }
     }
 
-    pub fn cont(mut self, o: Option<Expected>) -> Self {
+    pub fn cont(self, o: Option<Self>) -> Self {
         match o {
-            Some(ex) => {
-                self.exp = self.exp.or(ex);
-                self
-            }
+            Some(e2) => longer(self, e2),
             None => self,
         }
     }

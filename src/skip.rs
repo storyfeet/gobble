@@ -2,98 +2,127 @@ use crate::chars::*;
 use crate::iter::LCChars;
 use crate::ptrait::{ParseRes, Parser};
 
-pub struct Skip<CB: CharBool> {
-    cb: CB,
-}
-
-impl<CB: CharBool> Parser for Skip<CB> {
-    type Out = ();
-    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
-        let mut it = it.clone();
-        loop {
-            let it2 = it.clone();
-            match it.next() {
-                Some(c) if self.cb.char_bool(c) => {}
-                Some(_) | None => return Ok((it2, (), Some(self.cb.expected()))),
+pub fn do_skip_c<'a, CB: CharBool>(
+    it: &LCChars<'a>,
+    cb: &CB,
+    min: usize,
+    exact: bool,
+) -> ParseRes<'a, ()> {
+    let mut it = it.clone();
+    let mut done = 0;
+    loop {
+        let it2 = it.clone();
+        match it.next() {
+            Some(c) if cb.char_bool(c) => done += 1,
+            Some(_) | None => {
+                if done >= min {
+                    let eo = it2.err_cb_o(cb);
+                    return Ok((it2, (), eo));
+                } else {
+                    return it2.err_ex_r(cb.expected());
+                }
             }
+        }
+        if done == min && exact {
+            return Ok((it, (), None));
         }
     }
 }
 
-pub fn skip_c<CB: CharBool>(cb: CB) -> Skip<CB> {
-    Skip { cb }
+pub fn do_skip_p<'a, P: Parser>(
+    it: &LCChars<'a>,
+    p: &P,
+    min: usize,
+    exact: bool,
+) -> ParseRes<'a, ()> {
+    let mut it = it.clone();
+    let mut done = 0;
+    loop {
+        let it2 = it.clone();
+        it = match p.parse(&it) {
+            Ok((nit, _, _)) => {
+                done += 1;
+                nit
+            }
+            Err(e) => {
+                if done >= min {
+                    return Ok((it2, (), Some(e)));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+        if done == min && exact {
+            return Ok((it, (), None));
+        }
+    }
+}
+
+pub struct CharSkip<CB: CharBool> {
+    pub cb: CB,
+}
+
+impl<CB: CharBool> Parser for CharSkip<CB> {
+    type Out = ();
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        do_skip_c(it, &self.cb, 0, false)
+    }
 }
 
 #[derive(Clone)]
-pub struct SkipMin<CB: CharBool> {
-    cb: CB,
-    min: usize,
+pub struct CharSkipPlus<CB: CharBool> {
+    pub cb: CB,
 }
 
-/// ```rust
-/// use gobble::*;
-/// let p = '$'.skip().ig_then(Alpha.min_n(1));
-/// let s =p.parse_s("$$$$$$$hello").unwrap();
-/// assert_eq!(s,"hello");
-/// ```
-pub fn skip_while<CB: CharBool>(cb: CB, min: usize) -> SkipMin<CB> {
-    SkipMin { cb, min }
-}
-
-impl<CB: CharBool> Parser for SkipMin<CB> {
+impl<CB: CharBool> Parser for CharSkipPlus<CB> {
     type Out = ();
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
-        let mut i = i.clone();
-        let mut i2 = i.clone();
-        let mut ndone = 0;
-        while let Some(c) = i.next() {
-            match self.cb.char_bool(c) {
-                true => {
-                    i2 = i.clone();
-                    ndone += 1;
-                }
-                false => {
-                    return if ndone >= self.min {
-                        Ok((i2, (), Some(self.cb.expected())))
-                    } else {
-                        i.err_p_r(self)
-                    }
-                }
-            }
-        }
-        if ndone < self.min {
-            return i.err_p_r(self);
-        }
-        Ok((i, (), Some(self.cb.expected())))
+        do_skip_c(i, &self.cb, 1, false)
+    }
+}
+#[derive(Clone)]
+pub struct CharSkipExact<CB: CharBool> {
+    pub cb: CB,
+    pub n: usize,
+}
+
+impl<CB: CharBool> Parser for CharSkipExact<CB> {
+    type Out = ();
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, ()> {
+        do_skip_c(i, &self.cb, self.n, true)
     }
 }
 
-pub struct SkipRepeat<A: Parser> {
-    a: A,
-    min: usize,
+#[derive(Clone)]
+pub struct PSkipStar<A: Parser> {
+    pub a: A,
 }
-impl<A: Parser> Parser for SkipRepeat<A> {
+impl<A: Parser> Parser for PSkipStar<A> {
     type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
-        let mut done = 0;
-        let mut it = it.clone();
-        loop {
-            match self.a.parse(&it) {
-                Ok((ri, _, _)) => {
-                    done += 1;
-                    it = ri;
-                }
-                Err(e) => {
-                    if done < self.min {
-                        return Err(e);
-                    }
-                    return Ok((it, (), Some(self.a.expected())));
-                }
-            }
-        }
+        do_skip_p(it, &self.a, 0, false)
     }
 }
 
-pub fn skip_repeat<A: Parser>(a: A, min: usize) -> SkipRepeat<A> {
-    SkipRepeat { a, min }
+#[derive(Clone)]
+pub struct PSkipPlus<A: Parser> {
+    pub a: A,
+}
+impl<A: Parser> Parser for PSkipPlus<A> {
+    type Out = ();
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        do_skip_p(it, &self.a, 1, false)
+    }
+}
+
+#[derive(Clone)]
+pub struct PSkipExact<A: Parser> {
+    pub a: A,
+    pub n: usize,
+}
+impl<A: Parser> Parser for PSkipExact<A> {
+    type Out = ();
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        do_skip_p(it, &self.a, self.n, true)
+    }
 }

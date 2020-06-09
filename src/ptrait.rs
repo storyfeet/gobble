@@ -2,7 +2,7 @@ use crate::err::{longer, Expected, ParseError};
 use crate::iter::LCChars;
 use std::cmp::Ordering;
 
-pub type ParseRes<'a, V> = Result<(LCChars<'a>, V, Option<Expected>), ParseError>;
+pub type ParseRes<'a, V> = Result<(LCChars<'a>, V, Option<ParseError>), ParseError>;
 
 /// The core trait for parsing
 pub trait Parser: Sized {

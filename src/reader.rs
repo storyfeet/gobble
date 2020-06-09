@@ -2,7 +2,7 @@ use crate::chars::*;
 use crate::err::*;
 use crate::iter::LCChars;
 use crate::ptrait::{As, ParseRes, Parser};
-use crate::skip::skip_while;
+//use crate::skip::skip_while;
 
 pub type StrPos = Pos<()>;
 
@@ -66,24 +66,18 @@ pub fn pos<P: Parser>(p: P) -> PPos<P> {
 }
 
 pub fn ws_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    WS.skip().ig_then(p)
+    WS.skip_star().ig_then(p)
 }
 
 ///Convenience wrapper to say allow whitespace around whatever I'm parsing.
 pub fn s_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    crate::combi::wrap(WS.skip(), p)
+    crate::combi::wrap(WS.skip_star(), p)
 }
 
 ///Take at least n white space characters
 #[deprecated(since = "0.3.0", note = "use WS.any() or WS.min(n) instead")]
-pub fn ws(min: usize) -> impl Parser<Out = ()> {
-    skip_while(
-        |c| match c {
-            ' ' | '\t' | '\r' => true,
-            _ => false,
-        },
-        min,
-    )
+pub fn ws(_min: usize) -> impl Parser<Out = ()> {
+    WS.skip_star()
 }
 
 impl<P: Parser> Parser for KeyWord<P> {
@@ -145,7 +139,7 @@ pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
 }
 
 pub fn to_end() -> impl Parser<Out = ()> {
-    WS.any().ig_then(eoi)
+    WS.star().ig_then(eoi)
 }
 
 pub struct Peek<P: Parser> {
@@ -206,7 +200,7 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
             Ok((it2, ss, _)) => (it2, ss.into()),
             Err(e) => {
                 if self.min == 0 {
-                    return Ok((it.clone(), String::new(), Some(self.a.expected())));
+                    return Ok((it.clone(), String::new(), it.err_p_o(&self.a)));
                 } else {
                     return Err(e);
                 }
@@ -223,7 +217,8 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
                     if done < self.min {
                         return Err(e);
                     } else {
-                        return Ok((nit, res, Some(self.a.expected())));
+                        let eo = nit.err_p_o(&self.a);
+                        return Ok((nit, res, eo));
                     }
                 }
             }

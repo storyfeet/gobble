@@ -16,7 +16,7 @@ where
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         match self.p.parse(i) {
             Ok((ir, v, ex)) => Ok((ir, Some(v), ex)),
-            Err(e) => Ok((i.clone(), None, Some(e.exp))),
+            Err(e) => Ok((i.clone(), None, Some(e))),
         }
     }
 }

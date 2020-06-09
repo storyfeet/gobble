@@ -6,7 +6,7 @@
 //! use gobble::*;
 //! let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
 //!
-//! let fsig = (ident().then_ig("("),sep(ident(),",",0).then_ig(")"));
+//! let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
 //!  
 //!  let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
 //!  assert_eq!(nm, "loadFile1");
@@ -119,8 +119,8 @@
 //! assert!((NumDigit,"abc").min_n(4).parse_s("23fflr").is_err());
 //!
 //! // any succeeds even with no matches equivilent to min(0)
-//! assert_eq!((NumDigit,"abc").any().parse_s("23fflr"),Ok("23".to_string()));
-//! assert_eq!((NumDigit,"abc").any().parse_s("fflr"),Ok("".to_string()));
+//! assert_eq!((NumDigit,"abc").star().parse_s("23fflr"),Ok("23".to_string()));
+//! assert_eq!((NumDigit,"abc").star().parse_s("fflr"),Ok("".to_string()));
 //!
 //! ```
 //!
