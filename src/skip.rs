@@ -126,3 +126,28 @@ impl<A: Parser> Parser for PSkipExact<A> {
         do_skip_p(it, &self.a, self.n, true)
     }
 }
+
+pub fn skip_2_star<A: Parser, B: Parser>(a: A, b: B) -> Skip2Star<A, B> {
+    Skip2Star { a, b }
+}
+
+pub struct Skip2Star<A: Parser, B: Parser> {
+    a: A,
+    b: B,
+}
+
+impl<A: Parser, B: Parser> Parser for Skip2Star<A, B> {
+    type Out = ();
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
+        let mut it = it.clone();
+        loop {
+            if let Ok((nit, _, _)) = self.a.parse(&it) {
+                it = nit;
+            } else if let Ok((nit, _, _)) = self.b.parse(&it) {
+                it = nit;
+            } else {
+                return Ok((it, (), None));
+            }
+        }
+    }
+}

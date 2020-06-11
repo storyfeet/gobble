@@ -214,6 +214,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.4.2:
+* Skip2Star added for skipping 2 parsers of different types
+
 ### v 0.4.1:
 * derives Hash and Eq for Error
 
