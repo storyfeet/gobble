@@ -214,7 +214,10 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
-### v 0.4.0: Breaking WIP
+### v 0.4.1:
+* derives Hash and Eq for Error
+
+### v 0.4.0:
 * Now uses "star" and "plus" for CharBool Repeats instead of "min_n" and "any"
 * Now requires successes to declare if they could have continued with correct input
 * Now has clearer errors containing info on how to find them, and what they expected next 

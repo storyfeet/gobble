@@ -5,7 +5,7 @@ use std::fmt;
 use std::fmt::Debug;
 use thiserror::*;
 
-#[derive(Debug, PartialEq, Clone, Error)]
+#[derive(Debug, PartialEq, Eq, Clone, Error, Hash)]
 pub enum Expected {
     EOI,
     Char(char),
@@ -90,7 +90,7 @@ pub fn longer(mut a: ParseError, b: ParseError) -> ParseError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Error, Hash)]
 #[error("Parse Error {} at  {},{}: Expected {}",.is_brk, .line, .col, .exp)]
 pub struct ParseError {
     pub exp: Expected,
