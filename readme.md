@@ -6,106 +6,116 @@ For example parsing a function call
 use gobble::*;
 let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
 
-let fsig = (ident().then_ig("("),sep(ident(),",",0).then_ig(")"));
+let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
  
-let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
-assert_eq!(nm, "loadFile1");
-assert_eq!(args, vec!["fname", "ref"]);
+ let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
+ assert_eq!(nm, "loadFile1");
+ assert_eq!(args, vec!["fname", "ref"]);
 
-//identifiers cant start with numbers,
-assert!(fsig.parse_s("23file(fname,ref)").is_err());
-
-```
-
-To work this library depends the following:
+ //identifiers cant start with numbers,
+ assert!(fsig.parse_s("23file(fname,ref)").is_err());
  
-```rust
-pub enum ParseError {
-   //...
-}
-//The LCChars in the result will be a clone of the incoming iterator
-//but having iterated to end of the what the parser required.
-pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
+ ```
 
-//implements Iterator and can be cloned relatively cheaply
-pub struct LCChars<'a>{
-   it:std::str::Chars<'a>,
-   line:usize,
-   col:usize,
-}
+ To work this library depends the following:
+  
+ ```rust
+ pub enum ParseError {
+    //...
+ }
 
-pub trait Parser<V> {
-   // Takes a non mut pointer to the iterator, so that the caller
-   // may try something else if this doesn't work
-   // clone it before reading next
-   fn parse<'a>(&self,it:&LCChars<'a>)->ParseRes<'a,V>;
-   
-   //...helper methods
-}
-pub trait BoolChar {
-   fn bool_char(&self,c:char)->bool;
-   //....helper methods
-}
-```
+ // In the OK Case the value mean
+ //   LCChars = copy of original, but moved forward,
+ //   V = The resulting type
+ //   Option<ParserError> Only "Some" if the parser could have contined with more data
+ //   --This is useful for tracking what values would have been expected at a certain point
+ //
+ pub type ParseRes<'a, V> = Result<(LCChars<'a>, V,Option<ParseError>), ParseError>;
 
-Parser is automatically implemented for:
-* ```Fn<'a>(&LCChars<'a>)->ParseRes<'a,String>```
-* ```&'static str``` which will return itself if it matches
-* ```char``` which will return itself if it matched the next char
-* Tuples of up to 6 parsers. Returning a tuple of all the
-   parsers matched one after the
-other.
+ //implements Iterator and can be cloned relatively cheaply
+ pub struct LCChars<'a>{
+    it:std::str::Chars<'a>,
+    line:usize,
+    col:usize,
+ }
 
-Most of the time a parser can be built simply by combining other parsers
-```rust
-use gobble::*;
+ pub trait Parser<V> {
+    // Takes a non-mut pointer to the iterator, so that the caller
+    // may try something else if this doesn't work
+    // clone it before reading next
+    fn parse<'a>(&self,it:&LCChars<'a>)->ParseRes<'a,V>;
+    
+    //...helper methods
+ }
+ pub trait CharBool {
+    fn char_bool(&self,c:char)->bool;
+    //....helper methods
+ }
+ ```
 
-// map can be used to convert one result to another
-// keyval is now a function that returns a parser
-let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
+ Parser is automatically implemented for:
+ * ```Fn<'a>(&LCChars<'a>)->ParseRes<'a,String>```
+ * ```&'static str``` which will return itself if it matches
+ * ```char``` which will return itself if it matched the next char
+ * Tuples of up to 6 parsers. Returning a tuple of all the
+    parsers matched one after the
+ other.
 
-//this can also be written as below for better type safety
-fn keyval2()->impl Parser<(String,String)>{
-   (common_ident,":",common_str).map(|(a,_,c)|(a,c))
-}
+ Most of the time a parser can be built simply by combining other parsers
+ ```rust
+ use gobble::*;
 
-//parse_s is a helper on Parsers
-let (k,v) = keyval().parse_s(r#"car:"mini""#).unwrap();
-assert_eq!(k,"car");
-assert_eq!(v,"mini");
+ // map can be used to convert one result to another
+ // keyval is now a function that returns a parser
+ let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
 
-//this can now be combined with other parsers.
-// 'ig_then' combines 2 parsers and drops the result of the first
-// 'then_ig' drops the result of the second
-// 'sep_until will repeat the first term into a Vec, separated by the second
-//    until the final term.
-let obj = || "{".ig_then(sep_until(keyval(),",","}"));
+ //this can also be written as below for better type safety
+ fn keyval2()->impl Parser<Out=(String,String)>{
+    (common_ident,":",common_str).map(|(a,_,c)|(a,c))
+ }
+ 
+ //parse_s is a helper on Parsers
+ let (k,v) = keyval().parse_s(r#"car:"mini""#).unwrap();
+ assert_eq!(k,"car");
+ assert_eq!(v,"mini");
 
-let obs = obj().parse_s(r#"{cat:"Tiddles",dog:"Spot"}"#).unwrap();
-assert_eq!(obs[0],("cat".to_string(),"Tiddles".to_string()));
+ //this can now be combined with other parsers.
+ // 'ig_then' combines 2 parsers and drops the result of the first
+ // 'then_ig' drops the result of the second
+ // 'sep_until will repeat the first term into a Vec, separated by the second
+ //    until the final term.
+ let obj = || "{".ig_then(sep_until(keyval(),",","}"));
 
-```
-## CharBool
+ let obs = obj().parse_s(r#"{cat:"Tiddles",dog:"Spot"}"#).unwrap();
+ assert_eq!(obs[0],("cat".to_string(),"Tiddles".to_string()));
 
-CharBool is the trait for boolean char checks. It is auto implemented for:
-* Fn(char)->bool
-* char -- Returns true if the input matches the char
-* &'static str -- returns true if the str contains the input
-* several zero size types - Alpha,NumDigit,HexDigit,WS,WSL,Any
-* Tuples of up to 6 CharBools -- returning true if any of the members succeed
+ ```
+ ## CharBool
 
-This means you can combine them in tuples ```(Alpha,NumDigit,"_").char_bool(c)```
-will be true if any of them match
+ CharBool is the trait for boolean char checks. It is auto implemented for:
+ * Fn(char)->bool
+ * char -- Returns true if the input matches the char
+ * &'static str -- returns true if the str contains the input
+ * several zero size types - Alpha,NumDigit,HexDigit,WS,WSL,Any
+ * Tuples of up to 6 CharBools -- returning true if any of the members succeed
 
+ This means you can combine them in tuples ```(Alpha,NumDigit,"_").char_bool(c)```
+ will be true if any of them match
 
+ 
 
-CharBool also provides 3 helper methods which each return a parser
-* ```one()``` matches and returns exactly 1 character
-* ```min_n(n)``` requires at least n matches ruturns a string
-* ```any()``` matches any number of chars returning a string
-
-And a helper that returns a CharBool
-* ```except(cb)``` Passes if self does, and cb doesnt
+ CharBool also provides several helper methods which each return a parser
+ * ```one(self)``` matches and returns exactly 1 character
+ * ```plus(self)``` '+' requires at least 1 matches and ruturns a string
+ * ```min_n(self,n:usize)```  requires at least n matches and ruturns a string
+ * ```star(self)``` '*' matches any number of chars returning a string
+ * ```exact(self,n:usize)``` '*' matches exactly n chars returning a string
+ * ```skip_plus(self)``` '+' requires at least 1 matches and ruturns a ()
+ * ```skip_star(self)``` '*' matches any number of chars returning a ()
+ * ```skip_exact(self,n:usize)``` matches exactly n chars returning a ()
+ 
+ And a helper that returns a CharBool
+ * ```except(self,cb:CharBool)``` Passes if self does, and cb doesnt
 ```rust
 use gobble::*;
 let s = |c| c > 'w' || c == 'z';
@@ -118,9 +128,9 @@ assert_eq!(id,"sm*shing_game");
 // not enough matches
 assert!((NumDigit,"abc").min_n(4).parse_s("23fflr").is_err());
 
-// any succeeds even with no matches equivilent to min(0)
-assert_eq!((NumDigit,"abc").any().parse_s("23fflr"),Ok("23".to_string()));
-assert_eq!((NumDigit,"abc").any().parse_s("fflr"),Ok("".to_string()));
+// any succeeds even with no matches equivilent to min_n(0) but "Zero Size"
+assert_eq!((NumDigit,"abc").star().parse_s("23fflr"),Ok("23".to_string()));
+assert_eq!((NumDigit,"abc").star().parse_s("fflr"),Ok("".to_string()));
 
 ```
 
@@ -167,7 +177,7 @@ enum Expr {
     Paren(Box<Expr>),
 }
 
-fn expr_l()->impl Parser<Expr>{
+fn expr_l()->impl Parser<Out=Expr>{
     or(
         middle("(",s_(expr),")").map(|e|Expr::Paren(Box::new(e))),
         common_int.map(|v|Expr::Val(v))
@@ -202,13 +212,12 @@ assert_eq!(r,Expr::Add(
 ```
 
 
-
 ## Changelog:
 
 ### v 0.4.0: Breaking WIP
-* Now uses star and plus for repeats
+* Now uses "star" and "plus" for CharBool Repeats instead of "min_n" and "any"
 * Now requires successes to declare if they could have continued with correct input
-* Now has clearer errors containing info on how to find them, and what they expect next 
+* Now has clearer errors containing info on how to find them, and what they expected next 
 
 
 ### v 0.3.0: Breaking Changes 

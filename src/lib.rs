@@ -23,9 +23,14 @@
 //!  pub enum ParseError {
 //!     //...
 //!  }
-//!  //The LCChars in the result will be a clone of the incoming iterator
-//!  //but having iterated to end of the what the parser required.
-//!  pub type ParseRes<'a, V> = Result<(LCChars<'a>, V), ParseError>;
+//!
+//!  // In the OK Case the value mean
+//!  //   LCChars = copy of original, but moved forward,
+//!  //   V = The resulting type
+//!  //   Option<ParserError> Only "Some" if the parser could have contined with more data
+//!  //   --This is useful for tracking what values would have been expected at a certain point
+//!  //
+//!  pub type ParseRes<'a, V> = Result<(LCChars<'a>, V,Option<ParseError>), ParseError>;
 //!
 //!  //implements Iterator and can be cloned relatively cheaply
 //!  pub struct LCChars<'a>{
@@ -35,15 +40,15 @@
 //!  }
 //!
 //!  pub trait Parser<V> {
-//!     // Takes a non mut pointer to the iterator, so that the caller
+//!     // Takes a non-mut pointer to the iterator, so that the caller
 //!     // may try something else if this doesn't work
 //!     // clone it before reading next
 //!     fn parse<'a>(&self,it:&LCChars<'a>)->ParseRes<'a,V>;
 //!     
 //!     //...helper methods
 //!  }
-//!  pub trait BoolChar {
-//!     fn bool_char(&self,c:char)->bool;
+//!  pub trait CharBool {
+//!     fn char_bool(&self,c:char)->bool;
 //!     //....helper methods
 //!  }
 //!  ```
@@ -99,13 +104,18 @@
 //!
 //!  
 //!
-//!  CharBool also provides 3 helper methods which each return a parser
-//!  * ```one()``` matches and returns exactly 1 character
-//!  * ```min_n(n)``` requires at least n matches ruturns a string
-//!  * ```any()``` matches any number of chars returning a string
-//!
+//!  CharBool also provides several helper methods which each return a parser
+//!  * ```one(self)``` matches and returns exactly 1 character
+//!  * ```plus(self)``` '+' requires at least 1 matches and ruturns a string
+//!  * ```min_n(self,n:usize)```  requires at least n matches and ruturns a string
+//!  * ```star(self)``` '*' matches any number of chars returning a string
+//!  * ```exact(self,n:usize)``` '*' matches exactly n chars returning a string
+//!  * ```skip_plus(self)``` '+' requires at least 1 matches and ruturns a ()
+//!  * ```skip_star(self)``` '*' matches any number of chars returning a ()
+//!  * ```skip_exact(self,n:usize)``` matches exactly n chars returning a ()
+//!  
 //!  And a helper that returns a CharBool
-//!  * ```except(cb)``` Passes if self does, and cb doesnt
+//!  * ```except(self,cb:CharBool)``` Passes if self does, and cb doesnt
 //! ```rust
 //! use gobble::*;
 //! let s = |c| c > 'w' || c == 'z';
@@ -118,7 +128,7 @@
 //! // not enough matches
 //! assert!((NumDigit,"abc").min_n(4).parse_s("23fflr").is_err());
 //!
-//! // any succeeds even with no matches equivilent to min(0)
+//! // any succeeds even with no matches equivilent to min_n(0) but "Zero Size"
 //! assert_eq!((NumDigit,"abc").star().parse_s("23fflr"),Ok("23".to_string()));
 //! assert_eq!((NumDigit,"abc").star().parse_s("fflr"),Ok("".to_string()));
 //!
