@@ -93,6 +93,16 @@ impl<CB: CharBool> Parser for CharSkipExact<CB> {
     }
 }
 
+pub fn ig_star<A: Parser>(a: A) -> PSkipStar<A> {
+    PSkipStar { a }
+}
+pub fn ig_plus<A: Parser>(a: A) -> PSkipPlus<A> {
+    PSkipPlus { a }
+}
+pub fn ig_exact<A: Parser>(a: A, n: usize) -> PSkipExact<A> {
+    PSkipExact { a, n }
+}
+
 #[derive(Clone)]
 pub struct PSkipStar<A: Parser> {
     pub a: A,

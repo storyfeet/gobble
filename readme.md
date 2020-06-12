@@ -214,6 +214,11 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.4.4:
+* Added ```ig_star(p)```
+* Added ```ig_plus(p)```
+* Added ```ig_exect(p,n)```
+
 ### v 0.4.3:
 * Added ```string<A:Parser>(a:A)->impl Parser<String>``` to create a parser that reads the internal parser but returns the whole string it matched on
 
