@@ -214,6 +214,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.4.3:
+* Added ```string<A:Parser>(a:A)->impl Parser<String>``` to create a parser that reads the internal parser but returns the whole string it matched on
+
 ### v 0.4.2:
 * Skip2Star added for skipping 2 parsers of different types
 

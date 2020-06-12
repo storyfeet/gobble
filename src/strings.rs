@@ -32,3 +32,25 @@ where
 {
     String2P { a, b }
 }
+
+///A parser that ignores the result of another parser and returns the string between the
+///previous
+pub fn string<A: Parser>(a: A) -> AsString<A> {
+    AsString { a }
+}
+
+pub struct AsString<A: Parser> {
+    a: A,
+}
+
+impl<A: Parser> Parser for AsString<A> {
+    type Out = String;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
+        self.a
+            .parse(it)
+            .map(|(nit, _, ct)| match (it.index(), nit.index()) {
+                (Some(s), Some(f)) => (nit, it.as_str()[0..(f - s)].to_string(), ct),
+                _ => (nit, it.as_str().to_string(), ct),
+            })
+    }
+}

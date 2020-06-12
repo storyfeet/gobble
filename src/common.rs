@@ -21,8 +21,12 @@ pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
         .parse(it)
 }
 
+///```rust
+/// use gobble::*;
+/// assert_eq!(common_ident.parse_s("me34A_ dothing").unwrap(),"me34A_");
+///```
 pub fn common_ident<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    string_2_parts(Alpha.plus(), (Alpha, NumDigit, '_').star()).parse(it)
+    string((Alpha.skip_plus(), (Alpha, NumDigit, '_').skip_star())).parse(it)
 }
 
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
