@@ -3,26 +3,27 @@
 //! but they have a size, and when combined they can become bigger.
 //! If however all the parsers you combine have zero size, then the final resulting parser
 //! will also be zero size and therefor much easier to construct
+//!
 
 #[macro_export]
 macro_rules! parser {
     ($id:ident,$x:expr) => {
-        keyword!($id, $x, &'static str);
+        parser!($id, $x, &'static str);
     };
     (($id:ident,$x:expr)) => {
-        keyword!($id, $x, &'static str);
-    };
-    ($id:ident,$x:expr,$ot:ty) => {
-        keyword!($id, $x, $ot);
+        parser!($id, $x, &'static str);
     };
     (($id:ident,$x:expr,$ot:ty)) => {
-        keyword!($id, $x, Expected::Str(stringify!($id)), $ot);
+        parser!($id, $x, $ot);
+    };
+    ($id:ident,$x:expr,$ot:ty) => {
+        parser!($id, $x, crate::err::Expected::Str(stringify!($id)), $ot);
     };
     ($id:ident,$x:expr,$exp:expr)=>{
-        keyword!($id,$x,$exp,&static str);
+        parser!($id,$x,$exp,&static str);
     };
     (($id:ident,$x:expr,$exp:expr))=>{
-        keyword!($id,$x,$exp,&static str);
+        parser!($id,$x,$exp,&static str);
     };
     ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
         #[derive(Copy, Clone)]
@@ -32,7 +33,7 @@ macro_rules! parser {
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
                 (&$x).parse(it)
             }
-            fn expected(&self) -> Expected {
+            fn expected(&self) -> crate::err::Expected {
                 $exp
             }
         }
@@ -49,13 +50,31 @@ macro_rules! keyword {
     ($id:ident,$x:expr) => {
         keyword!($id, $x, &'static str);
     };
+    (($id:ident,$x:expr)) => {
+        keyword!($id, $x, &'static str);
+    };
+    (($id:ident,$x:expr,$ot:ty)) => {
+        keyword!($id, $x, $ot);
+    };
     ($id:ident,$x:expr,$ot:ty) => {
+        keyword!($id, $x, Expected::Str(stringify!($id)), $ot);
+    };
+    ($id:ident,$x:expr,$exp:expr)=>{
+        keyword!($id,$x,$exp,&static str);
+    };
+    (($id:ident,$x:expr,$exp:expr))=>{
+        keyword!($id,$x,$exp,&static str);
+    };
+    ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
         #[derive(Copy, Clone)]
         pub struct $id;
         impl Parser for $id {
             type Out = $ot;
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-                do_keyword(it, &$x)
+                do_keyword(it,&$x)
+            }
+            fn expected(&self) -> crate::err::Expected {
+                $exp
             }
         }
     };
@@ -69,7 +88,10 @@ macro_rules! keywords {
 #[macro_export]
 macro_rules! char_bool {
     ($id:ident,$x:expr) => {
-        char_bool!($id, $x, Expected::CharIn(stringify!($id)));
+        char_bool!($id, $x, crate::err::Expected::CharIn(stringify!($id)));
+    };
+    ($id:ident,$x:expr,$s:literal) => {
+        char_bool!($id, $x, crate::err::Expected::CharIn($s));
     };
     ($id:ident,$x:expr,$exp:expr) => {
         #[derive(Copy, Clone)]
@@ -78,7 +100,7 @@ macro_rules! char_bool {
             fn char_bool(&self, c: char) -> bool {
                 (&$x).char_bool(c)
             }
-            fn expected(&self) -> Expected {
+            fn expected(&self) -> crate::err::Expected {
                 $exp
             }
         }
@@ -95,7 +117,7 @@ mod test {
     use crate::*;
     parser!(DOG, "dog");
     parsers!((CAR, "car"), (CAT, "cat"));
-    //parser!(GROW, rep(or(CAT, DOG)), Vec<String>);
+    parser!(GROW, rep(or(CAT, DOG)), Vec<&'static str>);
 
     #[test]
     pub fn parser_makes_parser() {

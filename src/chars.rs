@@ -1,3 +1,16 @@
+//! CharBool is the main trait for checking if a character is in a set.
+//! There are several helper methods to turn these into Parsers such as
+//! * star plus min_n exact, skip_plus skip_exact
+//!
+//! ```rust
+//! use gobble::*;
+//! assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
+//! assert!(Alpha.min_n(6).parse_s("hello_").is_err());
+//!
+//! assert_eq!((Alpha,NumDigit).star().parse_s("root123r(sds)"),Ok("root123r".to_string()));
+//! ```
+//!
+
 use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
@@ -55,81 +68,25 @@ pub trait CharBool: Sized {
     }
 }
 
-char_bool!(Alpha, is_alpha);
-
-/// [a-z][A-Z]
-/// ```rust
-/// use gobble::*;
-/// assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
-/// assert!(Alpha.min_n(6).parse_s("hello_").is_err());
-/// ```
 pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
-/*impl CharBool for Alpha {
-    fn char_bool(&self, c: char) -> bool {
-        is_alpha(c)
-    }
-    fn expected(&self) -> Expected {
-        Expected::CharIn("[a-z][A-Z]")
-    }
-}*/
+char_bool!(Alpha, is_alpha);
 
-///0..9
-#[derive(Clone, Copy)]
-pub struct NumDigit;
 pub fn is_num(c: char) -> bool {
     c >= '0' && c <= '9'
 }
-impl CharBool for NumDigit {
-    fn char_bool(&self, c: char) -> bool {
-        is_num(c)
-    }
-    fn expected(&self) -> Expected {
-        Expected::CharIn("[0-9]")
-    }
-}
+char_bool!(NumDigit, is_num);
 
-#[derive(Clone, Copy)]
-pub struct Any;
-impl CharBool for Any {
-    fn char_bool(&self, _: char) -> bool {
-        true
-    }
-    fn expected(&self) -> Expected {
-        Expected::CharIn("anything")
-    }
-}
+char_bool!(Any, |_| true);
 
-///a-f,A-F,0-9
-#[derive(Clone, Copy)]
-pub struct HexDigit;
 pub fn is_hex(c: char) -> bool {
     is_num(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
-impl CharBool for HexDigit {
-    fn char_bool(&self, c: char) -> bool {
-        is_hex(c)
-    }
-    fn expected(&self) -> Expected {
-        Expected::CharIn("[0-9][a-f][A-F]")
-    }
-}
+char_bool!(HexDigit, is_hex);
 
-///Whitespace
-pub struct WS;
-impl CharBool for WS {
-    fn char_bool(&self, c: char) -> bool {
-        " \t".char_bool(c)
-    }
-}
-///Whitespace and newlines
-pub struct WSL;
-impl CharBool for WSL {
-    fn char_bool(&self, c: char) -> bool {
-        " \t\n\r".char_bool(c)
-    }
-}
+char_bool!(WS, "\t ");
+char_bool!(WSL, " \t\n\r");
 
 impl CharBool for char {
     fn char_bool(&self, c: char) -> bool {

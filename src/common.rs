@@ -1,11 +1,16 @@
 use crate::chars::*;
-//use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::reader::*;
 use crate::strings::*;
 use crate::tuple::*;
 use std::convert::TryFrom;
+
+parser!(
+    CommonEsc,
+    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one())),
+    char
+);
 
 pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
     '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
