@@ -55,25 +55,25 @@ pub trait CharBool: Sized {
     }
 }
 
+char_bool!(Alpha, is_alpha);
+
 /// [a-z][A-Z]
 /// ```rust
 /// use gobble::*;
 /// assert_eq!(Alpha.min_n(4).parse_s("hello_"),Ok("hello".to_string()));
 /// assert!(Alpha.min_n(6).parse_s("hello_").is_err());
 /// ```
-#[derive(Clone, Copy)]
-pub struct Alpha;
 pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
-impl CharBool for Alpha {
+/*impl CharBool for Alpha {
     fn char_bool(&self, c: char) -> bool {
         is_alpha(c)
     }
     fn expected(&self) -> Expected {
         Expected::CharIn("[a-z][A-Z]")
     }
-}
+}*/
 
 ///0..9
 #[derive(Clone, Copy)]

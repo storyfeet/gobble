@@ -211,12 +211,14 @@
 //!
 //! ```
 
+#[macro_use]
+pub mod macros;
+
 pub mod chars;
 pub mod combi;
 pub mod common;
 pub mod err;
 pub mod iter;
-pub mod macros;
 pub mod ptrait;
 pub mod reader;
 pub mod repeater;
