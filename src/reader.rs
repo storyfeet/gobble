@@ -80,21 +80,25 @@ pub fn ws(_min: usize) -> impl Parser<Out = ()> {
     WS.skip_star()
 }
 
+pub fn do_keyword<'a, P: Parser>(it: &LCChars<'a>, p: &P) -> ParseRes<'a, P::Out> {
+    let (t2, r, _) = p.parse(it)?;
+    match t2.clone().next() {
+        Some(c) => {
+            let al = (Alpha, NumDigit, '_');
+            if al.char_bool(c) {
+                t2.err_ex_r(Expected::except(al.expected()))
+            } else {
+                Ok((t2, r, None))
+            }
+        }
+        None => Ok((t2, r, None)),
+    }
+}
+
 impl<P: Parser> Parser for KeyWord<P> {
     type Out = P::Out;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, P::Out> {
-        let (t2, r, _) = self.p.parse(it)?;
-        match t2.clone().next() {
-            Some(c) => {
-                let al = (Alpha, NumDigit, '_');
-                if al.char_bool(c) {
-                    t2.err_ex_r(Expected::except(al.expected()))
-                } else {
-                    Ok((t2, r, None))
-                }
-            }
-            None => Ok((t2, r, None)),
-        }
+        do_keyword(it, &self.p)
     }
 }
 
