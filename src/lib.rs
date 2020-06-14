@@ -4,6 +4,26 @@
 //!
 //! ```rust
 //! use gobble::*;
+//! parser!{
+//!     (Ident->String)
+//!     string((Alpha.one(),(Alpha,NumDigit,'_').star()))
+//! }
+//!
+//! parser!{
+//!     (FSig->(String,Vec<String>))
+//!     (first(Ident,"("),sep_until(Ident,",",")"))
+//! }
+//! let (nm, args) = FSig.parse_s("loadFile1(fname,ref)").unwrap();
+//! assert_eq!(nm, "loadFile1");
+//! assert_eq!(args, vec!["fname", "ref"]);
+//! //Idents can't begin with numbers
+//! assert!(FSig.parse_s("23file(fname,ref)").is_err());
+//! ```
+//!
+//! If you'd prefer not to use macros, you don't have to:
+//!
+//! ```rust
+//! use gobble::*;
 //! let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
 //!
 //! let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
@@ -11,11 +31,13 @@
 //!  let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
 //!  assert_eq!(nm, "loadFile1");
 //!  assert_eq!(args, vec!["fname", "ref"]);
-//!
 //!  //identifiers cant start with numbers,
 //!  assert!(fsig.parse_s("23file(fname,ref)").is_err());
 //!  
 //!  ```
+//!
+//!  But the macros guarantee Zero-Sized types which is nice when combining them
+//!
 //!
 //!  To work this library depends the following:
 //!   
@@ -50,6 +72,7 @@
 //!  pub trait CharBool {
 //!     fn char_bool(&self,c:char)->bool;
 //!     //....helper methods
+//!     //
 //!  }
 //!  ```
 //!
@@ -67,11 +90,18 @@
 //!
 //!  // map can be used to convert one result to another
 //!  // keyval is now a function that returns a parser
-//!  let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
+//!  let keyval = || (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c));
 //!
 //!  //this can also be written as below for better type safety
 //!  fn keyval2()->impl Parser<Out=(String,String)>{
-//!     (common_ident,":",common_str).map(|(a,_,c)|(a,c))
+//!     (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c))
+//!  }
+//!
+//!  // or as a macro KeyVal is now a struct like:
+//!  // pub struct KeyVal;
+//!  parser!{
+//!     (KeyVal->(String,String))
+//!     (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c))
 //!  }
 //!  
 //!  //parse_s is a helper on Parsers
@@ -140,12 +170,12 @@
 //!
 //! ```rust
 //! use gobble::*;
-//! let my_ws = || " \t".any();
+//! let my_ws = || " \t".star();
 //! // middle takes three parsers and returns the result of the middle
 //! // this could also be done easily with 'map' or 'then_ig'
 //! let my_s = |p| middle(my_ws(),p,my_ws());
 //!
-//! let sp_id = my_s(common_ident);
+//! let sp_id = my_s(CommonIdent);
 //! let v = sp_id.parse_s("   \t  doggo  ").unwrap();
 //! assert_eq!(v,"doggo");
 //! ```

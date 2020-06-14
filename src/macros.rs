@@ -12,13 +12,13 @@ macro_rules! parser {
     ($id:ident,$x:expr) => {
         parser!(($id->&'static str) $x);
     };
-    (($id:ident -> $ot:ty) $x:expr) => {
-        parser!(($id->$ot) $x, crate::err::Expected::Str(stringify!($id)));
+    (($id:ident -> $ot:ty) $(,)? $x:expr $(,)?) => {
+        parser!(($id->$ot) $x, Expected::Str(stringify!($id)));
     };
     ($id:ident,$x:expr,$exp:expr) => {
         parser!(($id->&'static str) $x, $exp);
     };
-    (($id:ident -> $ot:ty) $x:expr,$exp:expr) => {
+    (($id:ident -> $ot:ty) $(,)? $x:expr,$exp:expr $(,)?) => {
         #[derive(Copy, Clone)]
         pub struct $id;
         impl Parser for $id {
@@ -26,7 +26,7 @@ macro_rules! parser {
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
                 (&$x).parse(it)
             }
-            fn expected(&self) -> crate::err::Expected {
+            fn expected(&self) -> Expected {
                 $exp
             }
         }
@@ -52,7 +52,7 @@ macro_rules! keyword {
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
                 do_keyword(it,&$x)
             }
-            fn expected(&self) -> crate::err::Expected {
+            fn expected(&self) -> Expected {
                 $exp
             }
         }
@@ -62,10 +62,10 @@ macro_rules! keyword {
 #[macro_export]
 macro_rules! char_bool {
     ($id:ident,$x:expr) => {
-        char_bool!($id, $x, crate::err::Expected::CharIn(stringify!($id)));
+        char_bool!($id, $x, Expected::CharIn(stringify!($id)));
     };
     ($id:ident,$x:expr,$s:literal) => {
-        char_bool!($id, $x, crate::err::Expected::CharIn($s));
+        char_bool!($id, $x, Expected::CharIn($s));
     };
     ($id:ident,$x:expr,$exp:expr) => {
         #[derive(Copy, Clone)]
@@ -74,7 +74,7 @@ macro_rules! char_bool {
             fn char_bool(&self, c: char) -> bool {
                 (&$x).char_bool(c)
             }
-            fn expected(&self) -> crate::err::Expected {
+            fn expected(&self) -> Expected {
                 $exp
             }
         }

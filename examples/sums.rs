@@ -17,32 +17,32 @@ pub enum Expr {
     //Bracket(Box<Expr>),
 }
 
-fn parse_op() -> impl Parser<Out = Op> {
-    //s_ allows whitespace either side of a parser
+parser! {
+    (OP ->Op)
     s_("+-*/".one()).try_map(|o| match o {
         '+' => Ok(Op::Add),
         '-' => Ok(Op::Sub),
         '*' => Ok(Op::Mul),
         '/' => Ok(Op::Div),
-        _ => Err(Expected::Str("[+-*/]")),
+        _ => Err(Expected::Str("OP")),
     })
 }
 
-fn parse_expr_l() -> impl Parser<Out = Expr> {
+parser! {
+    (LtExpr->Expr)
     or(
         CommonInt.map(|i| Expr::Val(i)),
-        middle("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
+        middle("(", RtExpr, ")").map(|e| Expr::Parenth(Box::new(e)))
     )
 }
 
-/// Resolve a simple mathematical expression
-pub fn parse_expr<'a>(i: &LCChars<'a>) -> ParseRes<'a, Expr> {
-    let p = (parse_expr_l(), maybe((parse_op(), parse_expr))).map(|(l, opt)| match opt {
+parser! {
+    (RtExpr->Expr)
+    (LtExpr, maybe((OP, RtExpr))).map(|(l, opt)| match opt {
         //Note this cares nothing for operation priority except for brackets
         Some((oper, r)) => Expr::Oper(oper, Box::new(l), Box::new(r)),
         None => l,
-    });
-    p.parse(i)
+    })
 }
 
 /// This loops asking the user for input of simple sum type "4 + 6 * (3-1)"
@@ -56,7 +56,7 @@ fn main() -> Result<(), std::io::Error> {
             Err(e) => return Err(e),
             _ => {}
         }
-        match parse_expr.then_ig(("\n", eoi)).parse_s(&s) {
+        match first(RtExpr, ("\n", eoi)).parse_s(&s) {
             Ok(v) => println!("{:?}", v),
             Err(e) => println!("{}", e.deep_print(&s)),
         }

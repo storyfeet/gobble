@@ -1,22 +1,23 @@
-/// Generally useful base parsers
-/// CommonStr,CommonInt,CommonUint,CommonEsc,CommonFloat
-/// ```rust
-/// use gobble::*;
-///
-/// assert_eq!(CommonBool.parse_s("true").unwrap(),true);
-/// assert_eq!(CommonBool.parse_s("false").unwrap(),false);
-///
-/// assert_eq!(CommonStr.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
-///
-/// assert_eq!(CommonIdent.parse_s("me34A_ dothing").unwrap(),"me34A_");
-/// assert_eq!(CommonInt.parse_s("32").unwrap(),32);
-///
-/// //floats
-/// assert_eq!(CommonFloat.parse_s("32.").unwrap(),32.);
-/// assert_eq!(CommonFloat.parse_s("-23.4").unwrap(),-23.4);
-/// assert_eq!(CommonFloat.parse_s("-23.4e2").unwrap(),-2340.);
-/// assert_eq!(CommonFloat.parse_s("123.4e-2").unwrap(),1.234);
-/// ```
+//! Generally useful base parsers
+//! CommonStr,CommonInt,CommonUint,CommonEsc,CommonFloat
+//!
+//! ```rust
+//! use gobble::*;
+//!
+//! assert_eq!(CommonBool.parse_s("true").unwrap(),true);
+//! assert_eq!(CommonBool.parse_s("false").unwrap(),false);
+//!
+//! assert_eq!(CommonStr.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
+//!
+//! assert_eq!(CommonIdent.parse_s("me34A_ dothing").unwrap(),"me34A_");
+//! assert_eq!(CommonInt.parse_s("32").unwrap(),32);
+//!
+//! //floats
+//! assert_eq!(CommonFloat.parse_s("32.").unwrap(),32.);
+//! assert_eq!(CommonFloat.parse_s("-23.4").unwrap(),-23.4);
+//! assert_eq!(CommonFloat.parse_s("-23.4e2").unwrap(),-2340.);
+//! assert_eq!(CommonFloat.parse_s("123.4e-2").unwrap(),1.234);
+//! ```
 use crate::chars::*;
 use crate::combi::*;
 use crate::err::*;
@@ -29,7 +30,7 @@ use std::convert::TryFrom;
 
 parser!(
     (CommonEsc->char)
-    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
+    last('\\',or!('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
 );
 
 pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
