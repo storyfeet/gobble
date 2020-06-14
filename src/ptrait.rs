@@ -295,7 +295,7 @@ pub mod test {
     use crate::common::*;
     #[test]
     fn test_strs_can_be_parsers() {
-        let p = "(((".ig_then(common_int);
+        let p = "(((".ig_then(CommonInt);
         let n = p.parse_s("(((32").unwrap();
         assert_eq!(n, 32);
     }

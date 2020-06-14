@@ -30,7 +30,7 @@ fn parse_op() -> impl Parser<Out = Op> {
 
 fn parse_expr_l() -> impl Parser<Out = Expr> {
     or(
-        common_int.map(|i| Expr::Val(i)),
+        CommonInt.map(|i| Expr::Val(i)),
         middle("(", parse_expr, ")").map(|e| Expr::Parenth(Box::new(e))),
     )
 }

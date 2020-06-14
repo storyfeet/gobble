@@ -2,22 +2,20 @@
 /// CommonStr,CommonInt,CommonUint,CommonEsc,CommonFloat
 /// ```rust
 /// use gobble::*;
+///
+/// assert_eq!(CommonBool.parse_s("true").unwrap(),true);
+/// assert_eq!(CommonBool.parse_s("false").unwrap(),false);
+///
 /// assert_eq!(CommonStr.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
 ///
 /// assert_eq!(CommonIdent.parse_s("me34A_ dothing").unwrap(),"me34A_");
-/// let r = common_int.parse_s("32").unwrap();
-/// assert_eq!(r,32);
+/// assert_eq!(CommonInt.parse_s("32").unwrap(),32);
 ///
 /// //floats
-/// let r = common_float.parse_s("32.").unwrap();
-/// assert_eq!(r, 32.);
-/// let r = common_float.parse_s("-23.4").unwrap();
-/// assert_eq!(r, -23.4);
-/// let r = common_float.parse_s("-23.4e2").unwrap();
-/// assert_eq!(r, -2340.);
-/// let r = common_float.parse_s("123.4e-2").unwrap();
-/// assert_eq!(r, 1.234);
-/// ```
+/// assert_eq!(CommonFloat.parse_s("32.").unwrap(),32.);
+/// assert_eq!(CommonFloat.parse_s("-23.4").unwrap(),-23.4);
+/// assert_eq!(CommonFloat.parse_s("-23.4e2").unwrap(),-2340.);
+/// assert_eq!(CommonFloat.parse_s("123.4e-2").unwrap(),1.234);
 /// ```
 use crate::chars::*;
 use crate::combi::*;
@@ -106,16 +104,14 @@ pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
     CommonInt.parse(it)
 }
 
-/// ```
-/// use gobble::*;
-/// let v = common_bool.parse_s("true").unwrap();
-/// assert!(v);
-/// ```
+parser! {
+    (CommonBool->bool)
+    or(keyword("true").map(|_|true),keyword("false").map(|_|false))
+}
+
+#[deprecated(since = "0.5.0", note = "use CommonBool instead")]
 pub fn common_bool<'a>(it: &LCChars<'a>) -> ParseRes<'a, bool> {
-    keyword("true")
-        .map(|_| true)
-        .or(keyword("false").map(|_| false))
-        .parse(it)
+    CommonBool.parse(it)
 }
 
 fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
@@ -139,32 +135,32 @@ fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
 }
 
 parser! {
-    (CommonExponent->f64)
-    ('e',CommonInt).map(|(_,ex)|{
-        let (n,mul)= match ex >=0{
-            true => (ex,10.),
-            false => (-ex,0.1),
-        };
-        let mut res = 1.;
-        for _ in 0..n{
-            res *=mul;
-        }
-        res
-    })
+    (CommonExponent->isize)
+    last('e',CommonInt)
 }
 
 parser! {
     (CommonFloat->f64)
-    (CommonInt,maybe(dot_part),maybe(CommonExponent)).map(|(n,d,e)|{
+    (CommonInt,dot_part,maybe(CommonExponent)).map(|(n,d,e)|{
         let mut res =n as f64;
-        if let Some(dp) =d  {
-            res += res.signum() * dp;
-        }
+        res += res.signum() * d;
         if let Some(exp) = e{
-            res *= exp;
-        }
+            match exp >= 0{
+                true =>{
+                    for _ in 0..exp {
+                        res *= 10.
+                    }
+                }
+                false =>{
+                    for _ in 0..-exp {
+                        res /= 10.
+                    }
+                }
+            }
+        };
         res
     })
+
 }
 
 pub fn common_float<'a>(it: &LCChars<'a>) -> ParseRes<'a, f64> {
@@ -176,28 +172,28 @@ pub mod test {
     use super::*;
     #[test]
     pub fn test_parse_numbers() {
-        let r = common_int.parse_s("32").unwrap();
+        let r = CommonInt.parse_s("32").unwrap();
         assert_eq!(r, 32);
-        let r = common_int.parse_s("-45023").unwrap();
+        let r = CommonInt.parse_s("-45023").unwrap();
         assert_eq!(r, -45023);
-        let r = common_int.parse_s("34_234").unwrap();
+        let r = CommonInt.parse_s("34_234").unwrap();
         assert_eq!(r, 34234);
-        assert!(common_int
+        assert!(CommonInt
             .parse_s("45654323456765432345676543212345654")
             .is_err());
-        assert!(common_int.parse_s("   45").is_err());
+        assert!(CommonInt.parse_s("   45").is_err());
     }
 
     #[test]
     pub fn parse_floats() {
-        let r = common_float.parse_s("32.").unwrap();
+        let r = CommonFloat.parse_s("32.").unwrap();
         assert_eq!(r, 32.);
-        let r = common_float.parse_s("-23.4").unwrap();
+        let r = CommonFloat.parse_s("-23.4").unwrap();
         assert_eq!(r, -23.4);
-        let r = common_float.parse_s("-23.4e2").unwrap();
+        let r = CommonFloat.parse_s("-23.4e2").unwrap();
         assert_eq!(r, -2340.);
-        let r = common_float.parse_s("123.4e-2").unwrap();
+        let r = CommonFloat.parse_s("123.4e-2").unwrap();
         assert_eq!(r, 1.234);
-        assert!(common_float.parse_s("123").is_err());
+        assert!(CommonFloat.parse_s("123").is_err());
     }
 }

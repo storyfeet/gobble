@@ -64,10 +64,10 @@ parser!(
     (JsonValue->Value)
     or!(
         "null".map(|_| Value::Null),
-        common_bool.map(|b| Value::Bool(b)),
+        CommonBool.map(|b| Value::Bool(b)),
         or(
-            common_float.map(|f| Value::Num(f)),
-            common_int.map(|i| Value::Num(i as f64)),
+            CommonFloat.map(|f| Value::Num(f)),
+            CommonInt.map(|i| Value::Num(i as f64)),
         ),
         JsonString.map(|s| Value::Str(s)),
         "[".ig_then(sep_until(wsn_(JsonValue), ",", "]"))
