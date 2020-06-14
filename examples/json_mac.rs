@@ -7,7 +7,7 @@ fn main() {
         "age"    :5,
         "n":null
     }"#;
-    let v = p_value.parse_s(s);
+    let v = JsonValue.parse_s(s);
     println!("{:?}", v);
 }
 
@@ -21,11 +21,12 @@ pub enum Value {
     Object(HashMap<String, Value>),
 }
 
-fn wsn() -> impl Parser<Out = ()> {
-    " \t\n\r".skip_star()
+pub fn wsn_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
+    middle(WSL.skip_star(), p, WSL.skip_star())
 }
 
-pub fn js_char() -> impl Parser<Out = char> {
+parser!(
+    (JsonChar -> char)
     or3(
         "\\u".ig_then(
             HexDigit
@@ -45,41 +46,38 @@ pub fn js_char() -> impl Parser<Out = char> {
             't'.asv('\t'),
             "\"\\".one(),
         )),
-        Any.one(),
+        Any.one()
     )
-}
+);
 
-pub fn json_string() -> impl Parser<Out = String> {
-    "\"".ig_then(chars_until(js_char(), '"').map(|(a, _)| a))
-}
+parser!(
+    (JsonString->String)
+    "\"".ig_then(chars_until(JsonChar, '"')).map(|(a, _)| a)
+);
 
-///whitespace_newline wrapper
-pub fn wsn_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    middle(wsn(), p, wsn())
-}
+parser!(
+    (MapItem->(String,Value))
+    (JsonString, wsn_(":"), JsonValue).map(|(a, _, b)| (a, b))
+);
 
-pub fn map_item() -> impl Parser<Out = (String, Value)> {
-    (json_string(), wsn_(":"), p_value).map(|(a, _, b)| (a, b))
-}
-
-pub fn p_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
-    let p = or6(
+parser!(
+    (JsonValue->Value)
+    or!(
         "null".map(|_| Value::Null),
         common_bool.map(|b| Value::Bool(b)),
         or(
             common_float.map(|f| Value::Num(f)),
             common_int.map(|i| Value::Num(i as f64)),
         ),
-        json_string().map(|s| Value::Str(s)),
-        "[".ig_then(sep_until(wsn_(p_value), ",", "]"))
+        JsonString.map(|s| Value::Str(s)),
+        "[".ig_then(sep_until(wsn_(JsonValue), ",", "]"))
             .map(|a| Value::Array(a)),
-        "{".ig_then(sep_until(wsn_(map_item()), ",", "}")).map(|a| {
+        "{".ig_then(sep_until(wsn_(MapItem), ",", "}")).map(|a| {
             let mut m = HashMap::new();
             for (k, v) in a {
                 m.insert(k, v);
             }
             Value::Object(m)
-        }),
-    );
-    p.parse(it)
-}
+        })
+    )
+);

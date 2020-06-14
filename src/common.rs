@@ -1,4 +1,27 @@
+/// Generally useful base parsers
+/// CommonStr,CommonInt,CommonUint,CommonEsc,CommonFloat
+/// ```rust
+/// use gobble::*;
+/// assert_eq!(CommonStr.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
+///
+/// assert_eq!(CommonIdent.parse_s("me34A_ dothing").unwrap(),"me34A_");
+/// let r = common_int.parse_s("32").unwrap();
+/// assert_eq!(r,32);
+///
+/// //floats
+/// let r = common_float.parse_s("32.").unwrap();
+/// assert_eq!(r, 32.);
+/// let r = common_float.parse_s("-23.4").unwrap();
+/// assert_eq!(r, -23.4);
+/// let r = common_float.parse_s("-23.4e2").unwrap();
+/// assert_eq!(r, -2340.);
+/// let r = common_float.parse_s("123.4e-2").unwrap();
+/// assert_eq!(r, 1.234);
+/// ```
+/// ```
 use crate::chars::*;
+use crate::combi::*;
+use crate::err::*;
 use crate::iter::*;
 use crate::ptrait::*;
 use crate::reader::*;
@@ -7,9 +30,8 @@ use crate::tuple::*;
 use std::convert::TryFrom;
 
 parser!(
-    CommonEsc,
-    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one())),
-    char
+    (CommonEsc->char)
+    '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
 );
 
 pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
@@ -17,21 +39,29 @@ pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
         .parse(it)
 }
 
-/// ```rust
-/// use gobble::*;
-/// assert_eq!(common_str.parse_s(r#""hello\t\"world\"""#),Ok("hello\t\"world\"".to_string()));
-/// ```
-pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    '"'.ig_then(chars_until(or(common_esc, Any.one()), '"').map(|(a, _)| a))
-        .parse(it)
+parser! {
+    (CommonStr->String)
+    '"'.ig_then(chars_until(or(CommonEsc, Any.one()), '"').map(|(a, _)| a))
 }
 
-///```rust
-/// use gobble::*;
-/// assert_eq!(common_ident.parse_s("me34A_ dothing").unwrap(),"me34A_");
-///```
+#[deprecated(since = "0.5.0", note = "use CommonStr instead")]
+pub fn common_str<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
+    CommonStr.parse(it)
+}
+
+parser! {
+    (CommonIdent->String)
+    string((Alpha.skip_plus(), (Alpha, NumDigit, '_').skip_star()))
+}
+
+#[deprecated(since = "0.5.0", note = "use CommonIdent instead")]
 pub fn common_ident<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
-    string((Alpha.skip_plus(), (Alpha, NumDigit, '_').skip_star())).parse(it)
+    CommonIdent.parse(it)
+}
+
+parser! {
+    (CommonUInt->usize)
+    common_uint
 }
 
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
@@ -60,24 +90,20 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
     }
 }
 
-/// A function for parsing integers
-/// ```
-/// use gobble::*;
-/// let r = common_int.parse_s("32").unwrap();
-/// assert_eq!(r,32);
-/// ```
-///
-pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
-    let mut it2 = it.clone();
-    let (minus, it2) = match it2.next() {
-        Some('-') => (-1, it2),
-        Some(v) if is_num(v) => (1, it.clone()),
-        _ => return it.err_r("Common int"),
-    };
+parser! {
+    (CommonInt->isize)
+    (maybe('-'),CommonUInt).try_map(|(m,n)|{
+        let n = isize::try_from(n).map_err(|_|Expected::Str("Int too big"))?;
+        match m {
+            Some(_)=>Ok(-n),
+            None=>Ok(n),
+        }
+    })
+}
 
-    let (it3, n, _) = common_uint(&it2)?;
-    let n: isize = isize::try_from(n).map_err(|_| it3.err("Int Too Big"))?;
-    Ok((it3, n * minus, None))
+#[deprecated(since = "0.5.0", note = "Use CommonInt instead")]
+pub fn common_int<'a>(it: &LCChars<'a>) -> ParseRes<'a, isize> {
+    CommonInt.parse(it)
 }
 
 /// ```
@@ -92,7 +118,7 @@ pub fn common_bool<'a>(it: &LCChars<'a>) -> ParseRes<'a, bool> {
         .parse(it)
 }
 
-pub fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
+fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
     let mut res = 0.;
     let mut exp = 0.1;
     let mut it = i.clone();
@@ -112,45 +138,37 @@ pub fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
     }
 }
 
-fn do_exponent<'a>(mut n: f64, i: &LCChars<'a>) -> ParseRes<'a, f64> {
-    let mut it = i.clone();
-    if it.next() != Some('e') {
-        return Ok((i.clone(), n, None));
-    }
-    let (it2, exp, _) = common_int(&it)?;
-    if exp > 0 {
-        for _ in 0..exp {
-            n *= 10.;
+parser! {
+    (CommonExponent->f64)
+    ('e',CommonInt).map(|(_,ex)|{
+        let (n,mul)= match ex >=0{
+            true => (ex,10.),
+            false => (-ex,0.1),
+        };
+        let mut res = 1.;
+        for _ in 0..n{
+            res *=mul;
         }
-    }
-    if exp < 0 {
-        for _ in 0..-exp {
-            n /= 10.;
-        }
-    }
-    Ok((it2, n, None))
+        res
+    })
 }
 
-/// ```rust
-/// use gobble::*;
-/// let r = common_float.parse_s("32.").unwrap();
-/// assert_eq!(r, 32.);
-/// let r = common_float.parse_s("-23.4").unwrap();
-/// assert_eq!(r, -23.4);
-/// let r = common_float.parse_s("-23.4e2").unwrap();
-/// assert_eq!(r, -2340.);
-/// let r = common_float.parse_s("123.4e-2").unwrap();
-/// assert_eq!(r, 1.234);
-/// ```
-pub fn common_float<'a>(it: &LCChars<'a>) -> ParseRes<'a, f64> {
-    let (it2, n, _) = common_int(it)?;
-    let minus = if n >= 0 { 1. } else { -1. };
-    let it3 = it2.clone();
-    let mut nf = n as f64;
+parser! {
+    (CommonFloat->f64)
+    (CommonInt,maybe(dot_part),maybe(CommonExponent)).map(|(n,d,e)|{
+        let mut res =n as f64;
+        if let Some(dp) =d  {
+            res += res.signum() * dp;
+        }
+        if let Some(exp) = e{
+            res *= exp;
+        }
+        res
+    })
+}
 
-    let (it3, dp, _) = dot_part(&it3)?;
-    nf += dp * minus;
-    do_exponent(nf, &it3)
+pub fn common_float<'a>(it: &LCChars<'a>) -> ParseRes<'a, f64> {
+    CommonFloat.parse(it)
 }
 
 #[cfg(test)]

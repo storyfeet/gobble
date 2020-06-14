@@ -6,18 +6,19 @@
 //!
 
 /// Makes zero sized parsers based on the expression given and potentially the return type given.
+
 #[macro_export]
 macro_rules! parser {
     ($id:ident,$x:expr) => {
-        parser!($id, $x, &'static str);
+        parser!(($id->&'static str) $x);
     };
-    ($id:ident,$x:expr,$ot:ty) => {
-        parser!($id, $x, crate::err::Expected::Str(stringify!($id)), $ot);
+    (($id:ident -> $ot:ty) $x:expr) => {
+        parser!(($id->$ot) $x, crate::err::Expected::Str(stringify!($id)));
     };
-    ($id:ident,$x:expr,$exp:expr)=>{
-        parser!($id,$x,$exp,&static str);
+    ($id:ident,$x:expr,$exp:expr) => {
+        parser!(($id->&'static str) $x, $exp);
     };
-    ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
+    (($id:ident -> $ot:ty) $x:expr,$exp:expr) => {
         #[derive(Copy, Clone)]
         pub struct $id;
         impl Parser for $id {
@@ -85,14 +86,24 @@ macro_rules! char_bools {
     ( $( ($id:ident,$x:expr) ),*) => {$(char_bool!($id,$x);)*};
 }
 
+#[macro_export]
+macro_rules! or{
+    ($s:expr,$($x:expr),*) => { $s$(.or($x))*;};
+}
+
 #[cfg(test)]
 mod test {
+
+    fn size_of<T: Sized>(_t: &T) -> usize {
+        std::mem::size_of::<T>()
+    }
+
     use crate::*;
     parser!(DOG, "dog");
     parser!(CAR, "car");
     parser!(CAT, "cat");
 
-    parser!(GROW, rep(or(CAT, DOG)), Vec<&'static str>);
+    parser!((GROW->Vec<&'static str>) rep(or(CAT, DOG)));
 
     #[test]
     pub fn parser_makes_parser() {
@@ -107,6 +118,7 @@ mod test {
     keyword!(LET, "let");
     keyword!(GO, "go");
     keyword!(FUNC, "func");
+    keyword!(RAND, "rand");
 
     #[test]
     pub fn keyword_makes_parser() {
@@ -124,5 +136,14 @@ mod test {
         assert_eq!(std::mem::size_of::<(HOT, MNUM)>(), 0);
         assert_eq!(p.plus().parse_s("09h3f"), Ok("09h3".to_string()));
         assert_eq!(p.expected(), OneOf(vec![CharIn("HOT"), CharIn("MNUM")]));
+        assert_eq!(size_of(&p), 0);
+    }
+
+    #[test]
+    pub fn multi_or_makes_parser() {
+        let p = or!(LET, GO, RAND, FUNC, CAT, DOG, CAR);
+        assert_eq!(p.parse_s("let  "), Ok("let"));
+        assert_eq!(p.parse_s("go  "), Ok("go"));
+        assert_eq!(size_of(&p), 0);
     }
 }
