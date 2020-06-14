@@ -5,24 +5,16 @@
 //! will also be zero size and therefor much easier to construct
 //!
 
+/// Makes zero sized parsers based on the expression given and potentially the return type given.
 #[macro_export]
 macro_rules! parser {
     ($id:ident,$x:expr) => {
         parser!($id, $x, &'static str);
     };
-    (($id:ident,$x:expr)) => {
-        parser!($id, $x, &'static str);
-    };
-    (($id:ident,$x:expr,$ot:ty)) => {
-        parser!($id, $x, $ot);
-    };
     ($id:ident,$x:expr,$ot:ty) => {
         parser!($id, $x, crate::err::Expected::Str(stringify!($id)), $ot);
     };
     ($id:ident,$x:expr,$exp:expr)=>{
-        parser!($id,$x,$exp,&static str);
-    };
-    (($id:ident,$x:expr,$exp:expr))=>{
         parser!($id,$x,$exp,&static str);
     };
     ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
@@ -41,28 +33,14 @@ macro_rules! parser {
 }
 
 #[macro_export]
-macro_rules! parsers {
-    ($($x:tt),+) => {$(parser!($x);)+};
-}
-
-#[macro_export]
 macro_rules! keyword {
     ($id:ident,$x:expr) => {
         keyword!($id, $x, &'static str);
-    };
-    (($id:ident,$x:expr)) => {
-        keyword!($id, $x, &'static str);
-    };
-    (($id:ident,$x:expr,$ot:ty)) => {
-        keyword!($id, $x, $ot);
     };
     ($id:ident,$x:expr,$ot:ty) => {
         keyword!($id, $x, Expected::Str(stringify!($id)), $ot);
     };
     ($id:ident,$x:expr,$exp:expr)=>{
-        keyword!($id,$x,$exp,&static str);
-    };
-    (($id:ident,$x:expr,$exp:expr))=>{
         keyword!($id,$x,$exp,&static str);
     };
     ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
@@ -78,11 +56,6 @@ macro_rules! keyword {
             }
         }
     };
-}
-
-#[macro_export]
-macro_rules! keywords {
-    { $( ($id:ident,$x:expr) ),*} => {$(keyword!($id,$x);)*};
 }
 
 #[macro_export]
@@ -109,28 +82,31 @@ macro_rules! char_bool {
 
 #[macro_export]
 macro_rules! char_bools {
-    { $( ($id:ident,$x:expr) ),*} => {$(char_bool!($id,$x);)*};
+    ( $( ($id:ident,$x:expr) ),*) => {$(char_bool!($id,$x);)*};
 }
 
 #[cfg(test)]
 mod test {
     use crate::*;
     parser!(DOG, "dog");
-    parsers!((CAR, "car"), (CAT, "cat"));
+    parser!(CAR, "car");
+    parser!(CAT, "cat");
+
     parser!(GROW, rep(or(CAT, DOG)), Vec<&'static str>);
 
     #[test]
     pub fn parser_makes_parser() {
         assert_eq!(DOG.parse_s("dog   "), Ok("dog"));
-        //   assert_eq!(CAT.parse_s("cat    "), Ok("cat"));
-        /*  assert_eq!(
+        assert_eq!(CAT.parse_s("cat    "), Ok("cat"));
+        assert_eq!(
             GROW.parse_s("catdogcatcatno"),
             Ok(vec!["cat", "dog", "cat", "cat"])
-        );*/
+        );
     }
 
     keyword!(LET, "let");
-    keywords!((GO, "go"), (FUNC, "func"));
+    keyword!(GO, "go");
+    keyword!(FUNC, "func");
 
     #[test]
     pub fn keyword_makes_parser() {
