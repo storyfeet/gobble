@@ -63,6 +63,7 @@ macro_rules! as_id {
 ///     // had to make a new scope for the doc test but it shouldn't be needed
 ///     // from outer crates
 ///     use gobble::*;
+///     //declare the enum
 ///     #[derive(Clone, PartialEq, Debug)]
 ///     pub enum Oper {
 ///         Add,
