@@ -34,29 +34,20 @@ macro_rules! parser {
 }
 
 #[macro_export]
-macro_rules! keyword {
-    ($id:ident,$x:expr) => {
-        keyword!($id, $x, &'static str);
+macro_rules! parser_as {
+    (($ot:ty),(($id:ident->$res:expr) $(,)? $main:expr,$exp:expr $(,)?) ) => {
+        parser! {($id->$ot) ,$main.map(|_|$res),$exp}
     };
-    ($id:ident,$x:expr,$ot:ty) => {
-        keyword!($id, $x, Expected::Str(stringify!($id)), $ot);
+    (($ot:ty),(($id:ident->$res:expr) $(,)? $main:expr $(,)?) ) => {
+        parser! {($id->$ot) ,$main.map(|_|$res)}
     };
-    ($id:ident,$x:expr,$exp:expr)=>{
-        keyword!($id,$x,$exp,&static str);
-    };
-    ($id:ident,$x:expr,$exp:expr,$ot:ty) => {
-        #[derive(Copy, Clone)]
-        pub struct $id;
-        impl Parser for $id {
-            type Out = $ot;
-            fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-                do_keyword(it,&$x)
-            }
-            fn expected(&self) -> Expected {
-                $exp
-            }
-        }
-    };
+}
+
+#[macro_export]
+macro_rules! group_parser{
+    ( $ot:ty=>$($mbit:tt),* $(,)?) =>{
+        $( parser_as!{($ot),$mbit})*
+    }
 }
 
 #[macro_export]
@@ -115,17 +106,6 @@ mod test {
         );
     }
 
-    keyword!(LET, "let");
-    keyword!(GO, "go");
-    keyword!(FUNC, "func");
-    keyword!(RAND, "rand");
-
-    #[test]
-    pub fn keyword_makes_parser() {
-        assert_eq!(LET.parse_s("let   "), Ok("let"));
-        assert!(LET.parse_s("letr   ").is_err());
-    }
-
     char_bool!(HOT, "hot");
     char_bool!(MNUM, |c| c >= '0' && c <= '9');
 
@@ -139,11 +119,23 @@ mod test {
         assert_eq!(size_of(&p), 0);
     }
 
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    pub enum Oper {
+        Add,
+        Sub,
+        Div,
+        Mul,
+    }
+    group_parser! { Oper =>
+        ((ADD->Oper::Add) '+'),
+        ((SUB->Oper::Sub) '-'),
+        ((DIV->Oper::Div) '/'),
+        ((MUL->Oper::Mul) '*')
+    }
+
     #[test]
-    pub fn multi_or_makes_parser() {
-        let p = or!(LET, GO, RAND, FUNC, CAT, DOG, CAR);
-        assert_eq!(p.parse_s("let  "), Ok("let"));
-        assert_eq!(p.parse_s("go  "), Ok("go"));
-        assert_eq!(size_of(&p), 0);
+    fn test_group_parser_makes_parsers() {
+        let v = rep(or!(ADD, SUB, DIV, MUL)).parse_s("-+-*hello").unwrap();
+        assert_eq!(v, vec![Oper::Sub, Oper::Add, Oper::Sub, Oper::Mul]);
     }
 }
