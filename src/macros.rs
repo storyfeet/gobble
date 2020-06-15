@@ -41,23 +41,58 @@ macro_rules! parser_as {
     (($ot:ty),(($id:ident->$res:expr) $(,)? $main:expr $(,)?) ) => {
         parser! {($id->$ot) ,$main.map(|_|$res)}
     };
-}
-
-#[macro_export]
-macro_rules! as_id {
-    ($mod:ident,(($id:ident->$_x:expr) $($_t:tt)*) ) => {
-        $mod::$id
+    (($ot:ty),($id:ident, $main:expr)) => {
+        parser! { ($id->$ot) $main}
     };
 }
 
 #[macro_export]
+macro_rules! as_id {
+    ((($id:ident->$_x:expr) $($_t:tt)*) ) => {
+        $mod::$id
+    };
+    (($id:ident $($_t:tt)*) ) => {
+        $mod::$id
+    };
+}
+
+/// ```rust
+/// use gobble::*;
+/// #[derive(Clone, PartialEq, Debug)]
+/// pub enum Oper {
+///     Add,
+///     Sub,
+///     Div,
+///     Mul,
+///     Var(String),
+/// }
+///
+/// enum_parser! { (OPER,oper,Oper) =>
+///     ((ADD->Oper::Add) '+'),
+///     ((SUB->Oper::Sub) '-'),
+///     ((DIV->Oper::Div) '/'),
+///     ((MUL->Oper::Mul) '*'),
+///     (VAR , Alpha.plus().map(|s|Oper::Var(s))),
+/// }
+///
+/// let v = rep(OPER).parse_s("-cat").unwrap();
+/// assert_eq!( v, vec![ Oper::Sub, Oper::Var("cat".to_string()) ]);
+///
+/// let v2 = rep(or!(oper::ADD, oper::SUB)).parse_s("-+-hello").unwrap();
+/// assert_eq!(v2, vec![Oper::Sub, Oper::Add, Oper::Sub]);
+///
+///
+/// ```
+#[macro_export]
 macro_rules! enum_parser{
     ( ($name:ident,$mod:ident,$ot:ty)=>$($mbit:tt),* $(,)?) =>{
-        parser!{ ($name->$ot) ( or!{ $(as_id!{$mod,$mbit}),*} )}
-        mod $mod{
-            use super::*;
+        pub mod $mod{
+            #[macro_use]
+            use $crate::*;
             $( parser_as!{($ot),$mbit})*
+            parser!{ ($name->$ot) ( or!{ $(as_id!{$mbit}),*} )}
         }
+        use $mod::$name;
     }
 }
 
@@ -133,29 +168,5 @@ mod test {
         assert_eq!(p.plus().parse_s("09h3f"), Ok("09h3".to_string()));
         assert_eq!(p.expected(), OneOf(vec![CharIn("HOT"), CharIn("MNUM")]));
         assert_eq!(size_of(&p), 0);
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum Oper {
-        Add,
-        Sub,
-        Div,
-        Mul,
-    }
-    enum_parser! { (OPER,oper,Oper) =>
-        ((ADD->Oper::Add) '+'),
-        ((SUB->Oper::Sub) '-'),
-        ((DIV->Oper::Div) '/'),
-        ((MUL->Oper::Mul) '*')
-    }
-
-    #[test]
-    fn test_group_parser_makes_parsers() {
-        let v = rep(or!(oper::ADD, oper::SUB, oper::DIV, oper::MUL))
-            .parse_s("-+-*hello")
-            .unwrap();
-        let v2 = rep(OPER).parse_s("-+-*cat").unwrap();
-        assert_eq!(v, v2);
-        assert_eq!(v, vec![Oper::Sub, Oper::Add, Oper::Sub, Oper::Mul]);
     }
 }
