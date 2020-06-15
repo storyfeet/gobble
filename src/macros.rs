@@ -44,9 +44,20 @@ macro_rules! parser_as {
 }
 
 #[macro_export]
-macro_rules! group_parser{
-    ( $ot:ty=>$($mbit:tt),* $(,)?) =>{
-        $( parser_as!{($ot),$mbit})*
+macro_rules! as_id {
+    ($mod:ident,(($id:ident->$_x:expr) $($_t:tt)*) ) => {
+        $mod::$id
+    };
+}
+
+#[macro_export]
+macro_rules! enum_parser{
+    ( ($name:ident,$mod:ident,$ot:ty)=>$($mbit:tt),* $(,)?) =>{
+        parser!{ ($name->$ot) ( or!{ $(as_id!{$mod,$mbit}),*} )}
+        mod $mod{
+            use super::*;
+            $( parser_as!{($ot),$mbit})*
+        }
     }
 }
 
@@ -77,6 +88,11 @@ macro_rules! char_bools {
     ( $( ($id:ident,$x:expr) ),*) => {$(char_bool!($id,$x);)*};
 }
 
+/// a macro replacement for numbered or statements.
+/// ```rust
+/// use gobble::*;
+/// assert_eq!(or!("cat","dog","car").parse_s("catdogman "),Ok("cat"));
+/// ```
 #[macro_export]
 macro_rules! or{
     ($s:expr,$($x:expr),*) => { $s$(.or($x))*;};
@@ -126,7 +142,7 @@ mod test {
         Div,
         Mul,
     }
-    group_parser! { Oper =>
+    enum_parser! { (OPER,oper,Oper) =>
         ((ADD->Oper::Add) '+'),
         ((SUB->Oper::Sub) '-'),
         ((DIV->Oper::Div) '/'),
@@ -135,7 +151,11 @@ mod test {
 
     #[test]
     fn test_group_parser_makes_parsers() {
-        let v = rep(or!(ADD, SUB, DIV, MUL)).parse_s("-+-*hello").unwrap();
+        let v = rep(or!(oper::ADD, oper::SUB, oper::DIV, oper::MUL))
+            .parse_s("-+-*hello")
+            .unwrap();
+        let v2 = rep(OPER).parse_s("-+-*cat").unwrap();
+        assert_eq!(v, v2);
         assert_eq!(v, vec![Oper::Sub, Oper::Add, Oper::Sub, Oper::Mul]);
     }
 }
