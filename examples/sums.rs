@@ -9,6 +9,13 @@ pub enum Op {
     Mul,
 }
 
+enum_parser! { (OP,op,Op) =>
+    ((ADD->Op::Add) '+'),
+    ((SUB->Op::Sub) '-'),
+    ((DIV->Op::Div) '/'),
+    ((MUL->Op::Mul) '*'),
+}
+
 #[derive(Debug)]
 pub enum Expr {
     Val(isize),
@@ -17,16 +24,16 @@ pub enum Expr {
     //Bracket(Box<Expr>),
 }
 
-parser! {
-    (OP ->Op)
-    s_("+-*/".one()).try_map(|o| match o {
-        '+' => Ok(Op::Add),
-        '-' => Ok(Op::Sub),
-        '*' => Ok(Op::Mul),
-        '/' => Ok(Op::Div),
-        _ => Err(Expected::Str("OP")),
-    })
-}
+//parser! {
+//   (OP ->Op)
+//   s_("+-*/".one()).try_map(|o| match o {
+//       '+' => Ok(Op::Add),
+//       '-' => Ok(Op::Sub),
+//       '*' => Ok(Op::Mul),
+//       '/' => Ok(Op::Div),
+//       _ => Err(Expected::Str("OP")),
+//   })
+// }
 
 parser! {
     (LtExpr->Expr)
