@@ -214,6 +214,10 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.5.0
+* Added macros -- Unexpectedly, Somewhat unexpectedly. see the Docs
+    The 
+
 ### v 0.4.4:
 * Added ```ig_star(p)```
 * Added ```ig_plus(p)```

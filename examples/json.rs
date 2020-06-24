@@ -65,10 +65,10 @@ pub fn map_item() -> impl Parser<Out = (String, Value)> {
 pub fn p_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
     let p = or6(
         "null".map(|_| Value::Null),
-        CommonBool.map(|b| Value::Bool(b)),
+        common::Bool.map(|b| Value::Bool(b)),
         or(
-            CommonFloat.map(|f| Value::Num(f)),
-            CommonInt.map(|i| Value::Num(i as f64)),
+            common::Float.map(|f| Value::Num(f)),
+            common::Int.map(|i| Value::Num(i as f64)),
         ),
         json_string().map(|s| Value::Str(s)),
         "[".ig_then(sep_until(wsn_(p_value), ",", "]"))

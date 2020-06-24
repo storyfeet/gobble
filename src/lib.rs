@@ -90,18 +90,18 @@
 //!
 //!  // map can be used to convert one result to another
 //!  // keyval is now a function that returns a parser
-//!  let keyval = || (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c));
+//!  let keyval = || (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c));
 //!
 //!  //this can also be written as below for better type safety
 //!  fn keyval2()->impl Parser<Out=(String,String)>{
-//!     (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c))
+//!     (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c))
 //!  }
 //!
 //!  // or as a macro KeyVal is now a struct like:
 //!  // pub struct KeyVal;
 //!  parser!{
 //!     (KeyVal->(String,String))
-//!     (CommonIdent,":",CommonStr).map(|(a,_,c)|(a,c))
+//!     (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c))
 //!  }
 //!  
 //!  //parse_s is a helper on Parsers
@@ -175,7 +175,7 @@
 //! // this could also be done easily with 'map' or 'then_ig'
 //! let my_s = |p| middle(my_ws(),p,my_ws());
 //!
-//! let sp_id = my_s(CommonIdent);
+//! let sp_id = my_s(common::Ident);
 //! let v = sp_id.parse_s("   \t  doggo  ").unwrap();
 //! assert_eq!(v,"doggo");
 //! ```
@@ -210,7 +210,7 @@
 //! fn expr_l()->impl Parser<Out=Expr>{
 //!     or(
 //!         middle("(",s_(expr),")").map(|e|Expr::Paren(Box::new(e))),
-//!         common_int.map(|v|Expr::Val(v))
+//!         common::Int.map(|v|Expr::Val(v))
 //!     )
 //! }
 //!
@@ -258,7 +258,7 @@ pub mod tuple;
 
 pub use chars::*;
 pub use combi::*;
-pub use common::*;
+//pub use common::*;
 pub use err::*;
 pub use iter::*;
 pub use macros::*;

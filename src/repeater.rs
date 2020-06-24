@@ -11,7 +11,7 @@ pub struct Exact<A: Parser> {
 /// ```
 /// use gobble::*;
 /// let it = LCChars::str("hello fish car cat");
-/// let (_,v,_) = do_exact(&it,&common_ident.then_ig(" "),3).unwrap();
+/// let (_,v,_) = do_exact(&it,&last(WS.star(),common::Ident),3).unwrap();
 /// assert_eq!(v,vec!["hello","fish","car"]);
 ///
 /// ```
@@ -81,19 +81,19 @@ where
     Reflect { a, b, c }
 }
 
-/// Repeat an exact number of times
-///
-/// ```
-/// use gobble::*;
-/// let p = repeat_n(common_int.then_ig(","),5);
-/// let v = p.parse_s("7,6,5,4,3,2,1").unwrap();
-/// assert_eq!(v,vec![7,6,5,4,3]);
-/// ```
 #[deprecated(since = "0.4.0", note = "Use 'exact' instead")]
 pub fn repeat_n<A: Parser>(a: A, n: usize) -> Exact<A> {
     Exact { a, n }
 }
 
+/// Repeat an exact number of times
+///
+/// ```
+/// use gobble::*;
+/// let p = repeat_n(common::Int.then_ig(","),5);
+/// let v = p.parse_s("7,6,5,4,3,2,1").unwrap();
+/// assert_eq!(v,vec![7,6,5,4,3]);
+/// ```
 pub fn exact<A: Parser>(a: A, n: usize) -> Exact<A> {
     Exact { a, n }
 }

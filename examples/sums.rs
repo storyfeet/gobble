@@ -38,7 +38,7 @@ pub enum Expr {
 parser! {
     (LtExpr->Expr)
     or(
-        CommonInt.map(|i| Expr::Val(i)),
+        common::Int.map(|i| Expr::Val(i)),
         middle("(", RtExpr, ")").map(|e| Expr::Parenth(Box::new(e)))
     )
 }

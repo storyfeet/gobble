@@ -292,10 +292,9 @@ impl<P: Parser> Parser for Break<P> {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::common::*;
     #[test]
     fn test_strs_can_be_parsers() {
-        let p = "(((".ig_then(CommonInt);
+        let p = "(((".ig_then(crate::common::Int);
         let n = p.parse_s("(((32").unwrap();
         assert_eq!(n, 32);
     }
