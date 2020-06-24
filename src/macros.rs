@@ -7,6 +7,14 @@
 
 /// Makes zero sized parsers based on the expression given and potentially the return type given.
 
+/// ```rust
+/// use gobble::*;
+/// parser!{
+///     (Cat->String),
+///     "cat".plus(),
+/// }
+/// assert_eq!(Cat.parse_s("ctar"),Ok("cta".to_string()));
+/// ```
 #[macro_export]
 macro_rules! parser {
     ($id:ident,$x:expr) => {
@@ -134,11 +142,11 @@ macro_rules! char_bools {
 /// a macro replacement for numbered or statements.
 /// ```rust
 /// use gobble::*;
-/// assert_eq!(or!("cat","dog","car").parse_s("catdogman "),Ok("cat"));
+/// assert_eq!(or!("cat","dog","car",).parse_s("catdogman "),Ok("cat"));
 /// ```
 #[macro_export]
 macro_rules! or{
-    ($s:expr,$($x:expr),*) => { $s$(.or($x))*;};
+    ($s:expr,$($x:expr),* $(,)?) => { $s$(.or($x))*;};
 }
 
 #[cfg(test)]
