@@ -130,6 +130,10 @@ impl ParseError {
         }
     }
 
+    pub fn strung(self, s: String) -> StrungError {
+        StrungError { pe: self, s }
+    }
+
     pub fn print_on(&self, s: &str) -> String {
         let (pstr, ids): (String, String) = match self.index {
             Some(i) => (s[i..].chars().take(10).collect(), i.to_string()),
@@ -192,5 +196,18 @@ impl PartialOrd for ParseError {
             (Some(_), None) => Some(Ordering::Less),
             (Some(av), Some(bv)) => av.partial_cmp(&bv),
         }
+    }
+}
+
+//The StrungError has the String it was parsed from attached to it.
+#[derive(Debug, Clone, Error)]
+pub struct StrungError {
+    s: String,
+    pe: ParseError,
+}
+
+impl fmt::Display for StrungError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.pe.print_on(&self.s))
     }
 }
