@@ -1,4 +1,5 @@
 use crate::chars::*;
+use crate::combi::*;
 use crate::err::*;
 use crate::iter::LCChars;
 use crate::ptrait::{As, ParseRes, Parser};
@@ -53,10 +54,15 @@ impl<P: Parser> Parser for PPos<P> {
 /// ```rust
 /// use gobble::*;
 /// let s = " \n  hello   ".to_string();
-/// let v = "\n ".any().ig_then(str_pos(Alpha.any())).parse_s(&s).unwrap();
+/// let v = "\n ".any().ig_then(pos_ig(Alpha.any())).parse_s(&s).unwrap();
 /// assert_eq!(v,Pos{line:1,col:2,start:4,fin:Some(9),ob:()});
 /// assert_eq!(v.on_str(&s),"hello");
 /// ```
+pub fn pos_ig<P: Parser>(p: P) -> PPos<As<P, ()>> {
+    PPos { p: p.ig() }
+}
+
+#[deprecated(since = "0.5.0", note = "use pos_ig instead")]
 pub fn str_pos<P: Parser>(p: P) -> PPos<As<P, ()>> {
     PPos { p: p.ig() }
 }
@@ -65,19 +71,27 @@ pub fn pos<P: Parser>(p: P) -> PPos<P> {
     PPos { p }
 }
 
+pub fn ws__<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
+    wrap(WS.istar(), p)
+}
+
 pub fn ws_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    WS.skip_star().ig_then(p)
+    WS.istar().ig_then(p)
 }
 
 ///Convenience wrapper to say allow whitespace around whatever I'm parsing.
+#[deprecated(
+    since = "0.5.0",
+    note = "use ws__ instead, to match convention __ means wrap around"
+)]
 pub fn s_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    crate::combi::wrap(WS.skip_star(), p)
+    crate::combi::wrap(WS.istar(), p)
 }
 
 ///Take at least n white space characters
 #[deprecated(since = "0.3.0", note = "use WS.any() or WS.min(n) instead")]
 pub fn ws(_min: usize) -> impl Parser<Out = ()> {
-    WS.skip_star()
+    WS.istar()
 }
 
 pub fn do_keyword<'a, P: Parser>(it: &LCChars<'a>, p: &P) -> ParseRes<'a, P::Out> {

@@ -22,7 +22,7 @@ pub enum Value {
 }
 
 pub fn wsn_<P: Parser>(p: P) -> impl Parser<Out = P::Out> {
-    middle(WSL.skip_star(), p, WSL.skip_star())
+    middle(WSL.istar(), p, WSL.istar())
 }
 
 parser!(
@@ -70,9 +70,9 @@ parser!(
             common::Int.map(|i| Value::Num(i as f64)),
         ),
         JsonString.map(|s| Value::Str(s)),
-        "[".ig_then(sep_until(wsn_(JsonValue), ",", "]"))
+        "[".ig_then(sep_until_ig(wsn_(JsonValue), ",", "]"))
             .map(|a| Value::Array(a)),
-        "{".ig_then(sep_until(wsn_(MapItem), ",", "}")).map(|a| {
+        "{".ig_then(sep_until_ig(wsn_(MapItem), ",", "}")).map(|a| {
             let mut m = HashMap::new();
             for (k, v) in a {
                 m.insert(k, v);

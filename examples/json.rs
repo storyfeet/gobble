@@ -22,7 +22,7 @@ pub enum Value {
 }
 
 fn wsn() -> impl Parser<Out = ()> {
-    " \t\n\r".skip_star()
+    " \t\n\r".istar()
 }
 
 pub fn js_char() -> impl Parser<Out = char> {
@@ -71,15 +71,16 @@ pub fn p_value<'a>(it: &LCChars<'a>) -> ParseRes<'a, Value> {
             common::Int.map(|i| Value::Num(i as f64)),
         ),
         json_string().map(|s| Value::Str(s)),
-        "[".ig_then(sep_until(wsn_(p_value), ",", "]"))
+        "[".ig_then(sep_until_ig(wsn_(p_value), ",", "]"))
             .map(|a| Value::Array(a)),
-        "{".ig_then(sep_until(wsn_(map_item()), ",", "}")).map(|a| {
-            let mut m = HashMap::new();
-            for (k, v) in a {
-                m.insert(k, v);
-            }
-            Value::Object(m)
-        }),
+        "{".ig_then(sep_until_ig(wsn_(map_item()), ",", "}"))
+            .map(|a| {
+                let mut m = HashMap::new();
+                for (k, v) in a {
+                    m.insert(k, v);
+                }
+                Value::Object(m)
+            }),
     );
     p.parse(it)
 }

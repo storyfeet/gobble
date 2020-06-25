@@ -1,21 +1,47 @@
-Gobble is a simple parser combinator system for parsing strings.
+Gobble is a simple parser combinator system for parsing strings.  
 
-For example parsing a function call
+*Note:It works well but it is currently still under heavy development, so the API may change significantly between versions. if the 'b' changes in "0.b.c" there will be breaking changes. Though I do believe right now I'm close to setting on the API
+
+I'm very open to recieving feedback on github*
+
+Creating Parsers in rust should be quite straight forward. For example parsing a function call
 
 ```rust
 use gobble::*;
-let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
+parser!{
+    (Ident->String)
+    string((Alpha.one(),(Alpha,NumDigit,'_').istar()))
+}
+
+parser!{
+    (FSig->(String,Vec<String>))
+    (first(Ident,"("),sep_until(Ident,",",")"))
+}
+let (nm, args) = FSig.parse_s("loadFile1(fname,ref)").unwrap();
+assert_eq!(nm, "loadFile1");
+assert_eq!(args, vec!["fname", "ref"]);
+//Idents can't begin with numbers
+assert!(FSig.parse_s("23file(fname,ref)").is_err());
+```
+
+If you'd prefer not to use macros, you don't have to:
+
+```rust
+use gobble::*;
+let ident = || string((Alpha.one(),(Alpha,NumDigit,'_').istar()));
 
 let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
  
  let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
  assert_eq!(nm, "loadFile1");
  assert_eq!(args, vec!["fname", "ref"]);
-
  //identifiers cant start with numbers,
  assert!(fsig.parse_s("23file(fname,ref)").is_err());
  
  ```
+
+ But the macros guarantee of Zero-Sized types which is nice when combining them
+
 
  To work this library depends the following:
   
@@ -50,6 +76,7 @@ let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
  pub trait CharBool {
     fn char_bool(&self,c:char)->bool;
     //....helper methods
+    //
  }
  ```
 
@@ -67,11 +94,18 @@ let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
 
  // map can be used to convert one result to another
  // keyval is now a function that returns a parser
- let keyval = || (common_ident,":",common_str).map(|(a,_,c)|(a,c));
+ let keyval = || (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c));
 
  //this can also be written as below for better type safety
  fn keyval2()->impl Parser<Out=(String,String)>{
-    (common_ident,":",common_str).map(|(a,_,c)|(a,c))
+    (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c))
+ }
+
+ // or as a macro KeyVal is now a struct like:
+ // pub struct KeyVal;
+ parser!{
+    (KeyVal->(String,String))
+    (common::Ident,":",common::Quoted).map(|(a,_,c)|(a,c))
  }
  
  //parse_s is a helper on Parsers
@@ -110,9 +144,9 @@ let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
  * ```min_n(self,n:usize)```  requires at least n matches and ruturns a string
  * ```star(self)``` '*' matches any number of chars returning a string
  * ```exact(self,n:usize)``` '*' matches exactly n chars returning a string
- * ```skip_plus(self)``` '+' requires at least 1 matches and ruturns a ()
- * ```skip_star(self)``` '*' matches any number of chars returning a ()
- * ```skip_exact(self,n:usize)``` matches exactly n chars returning a ()
+ * ```iplus(self)``` '+' requires at least 1 matches and ruturns a ()
+ * ```istar(self)``` '*' matches any number of chars returning a ()
+ * ```iexact(self,n:usize)``` matches exactly n chars returning a ()
  
  And a helper that returns a CharBool
  * ```except(self,cb:CharBool)``` Passes if self does, and cb doesnt
@@ -140,21 +174,21 @@ White space is pretty straight forward to handle
 
 ```rust
 use gobble::*;
-let my_ws = || " \t".any();
+let my_ws = || " \t".star();
 // middle takes three parsers and returns the result of the middle
 // this could also be done easily with 'map' or 'then_ig'
 let my_s = |p| middle(my_ws(),p,my_ws());
 
-let sp_id = my_s(common_ident);
+let sp_id = my_s(common::Ident);
 let v = sp_id.parse_s("   \t  doggo  ").unwrap();
 assert_eq!(v,"doggo");
 ```
-That said gobble already provides ```ws()``` and ```s_(p)```
+That said gobble already provides ```WS``` and ```s_(p)```
 
 ```rust
 use gobble::*;
 //eoi = end of input
-let p = repeat_until_ig(s_("abc".min_n(1)),eoi);
+let p = repeat_until_ig(s_("abc".plus()),eoi);
 let r = p.parse_s("aaa \tbbb bab").unwrap();
 assert_eq!(r,vec!["aaa","bbb","bab"]);
 ```
@@ -180,7 +214,7 @@ enum Expr {
 fn expr_l()->impl Parser<Out=Expr>{
     or(
         middle("(",s_(expr),")").map(|e|Expr::Paren(Box::new(e))),
-        common_int.map(|v|Expr::Val(v))
+        common::Int.map(|v|Expr::Val(v))
     )
 }
 
@@ -216,12 +250,13 @@ assert_eq!(r,Expr::Add(
 
 ### v 0.5.0
 * Added macros -- Unexpectedly, Somewhat unexpectedly. see the Docs
-    The 
+* swapped skip_star to istar etc for charbools
+* Added StrungError and StrError, which can print themselves with great information
 
 ### v 0.4.4:
-* Added ```ig_star(p)```
-* Added ```ig_plus(p)```
-* Added ```ig_exect(p,n)```
+* Added ```skip_star(p)```
+* Added ```skip_plus(p)```
+* Added ```skip_exact(p,n)```
 
 ### v 0.4.3:
 * Added ```string<A:Parser>(a:A)->impl Parser<String>``` to create a parser that reads the internal parser but returns the whole string it matched on

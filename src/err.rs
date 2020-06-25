@@ -130,6 +130,10 @@ impl ParseError {
         }
     }
 
+    pub fn on_str<'a>(self, s: &'a str) -> StrError<'a> {
+        StrError { pe: self, s }
+    }
+
     pub fn strung(self, s: String) -> StrungError {
         StrungError { pe: self, s }
     }
@@ -199,15 +203,37 @@ impl PartialOrd for ParseError {
     }
 }
 
+//The StrungError has the &str it was parsed from attached to it.
+#[derive(Debug, Clone, Error)]
+pub struct StrError<'a> {
+    pub s: &'a str,
+    pub pe: ParseError,
+}
+
+impl<'a> fmt::Display for StrError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.pe.print_on(self.s))
+    }
+}
+
 //The StrungError has the String it was parsed from attached to it.
 #[derive(Debug, Clone, Error)]
 pub struct StrungError {
-    s: String,
-    pe: ParseError,
+    pub s: String,
+    pub pe: ParseError,
 }
 
 impl fmt::Display for StrungError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.pe.print_on(&self.s))
+    }
+}
+
+impl<'a> From<StrError<'a>> for StrungError {
+    fn from(se: StrError<'a>) -> Self {
+        StrungError {
+            pe: se.pe,
+            s: se.s.into(),
+        }
     }
 }

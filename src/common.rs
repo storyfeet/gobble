@@ -46,7 +46,7 @@ parser! {
 
 parser! {
     (Ident->String)
-    string((Alpha.skip_plus(), (Alpha, NumDigit, '_').skip_star()))
+    string((Alpha.iplus(), (Alpha, NumDigit, '_').istar()))
 }
 
 #[deprecated(since = "0.5.0", note = "use Ident instead")]

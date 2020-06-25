@@ -91,10 +91,10 @@ macro_rules! as_id {
 /// }
 /// use scoper::*;
 ///
-/// let v = rep(scoper::OPER).parse_s("-cat").unwrap();
+/// let v = star(scoper::OPER).parse_s("-cat").unwrap();
 /// assert_eq!( v, vec![ Oper::Sub, Oper::Var("cat".to_string()) ]);
 ///
-/// let v2 = rep(or!(oper::ADD, oper::SUB)).parse_s("-+-hello").unwrap();
+/// let v2 = star(or!(oper::ADD, oper::SUB)).parse_s("-+-hello").unwrap();
 /// assert_eq!(v2, vec![Oper::Sub, Oper::Add, Oper::Sub]);
 ///
 ///
@@ -161,7 +161,7 @@ mod test {
     parser!(CAR, "car");
     parser!(CAT, "cat");
 
-    parser!((GROW->Vec<&'static str>) rep(or(CAT, DOG)));
+    parser!((GROW->Vec<&'static str>) star(or(CAT, DOG)));
 
     #[test]
     pub fn parser_makes_parser() {
@@ -204,10 +204,10 @@ mod test {
 
     #[test]
     fn test_enum_group_make_parser() {
-        let v = rep(OPER).parse_s("-cat").unwrap();
+        let v = star(OPER).parse_s("-cat").unwrap();
         assert_eq!(v, vec![Oper::Sub, Oper::Var("cat".to_string())]);
 
-        let v2 = rep(or!(oper::ADD, oper::SUB)).parse_s("-+-hello").unwrap();
+        let v2 = star(or!(oper::ADD, oper::SUB)).parse_s("-+-hello").unwrap();
         assert_eq!(v2, vec![Oper::Sub, Oper::Add, Oper::Sub]);
     }
 }

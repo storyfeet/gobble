@@ -151,7 +151,12 @@ where
     }
 }
 
+#[deprecated(since = "0.5.0", note = "use sep_star instead")]
 pub fn sep<A: Parser, B: Parser>(a: A, b: B) -> SepStar<A, B> {
+    SepStar { a, b }
+}
+
+pub fn sep_star<A: Parser, B: Parser>(a: A, b: B) -> SepStar<A, B> {
     SepStar { a, b }
 }
 pub fn sep_plus<A: Parser, B: Parser>(a: A, b: B) -> SepPlus<A, B> {
@@ -208,7 +213,12 @@ impl<A: Parser> Parser for RepStar<A> {
     }
 }
 
+#[deprecated(since = "0.5.0", note = "use star instead")]
 pub fn rep<A: Parser>(a: A) -> RepStar<A> {
+    RepStar { a }
+}
+
+pub fn star<A: Parser>(a: A) -> RepStar<A> {
     RepStar { a }
 }
 
@@ -224,7 +234,12 @@ impl<A: Parser> Parser for RepPlus<A> {
     }
 }
 
+#[deprecated(since = "0.5.0", note = "use plus instead")]
 pub fn rep_plus<A: Parser>(a: A) -> RepPlus<A> {
+    RepPlus { a }
+}
+
+pub fn plus<A: Parser>(a: A) -> RepPlus<A> {
     RepPlus { a }
 }
 
@@ -284,12 +299,12 @@ where
     B: Parser,
     C: Parser,
 {
-    type Out = Vec<A::Out>;
+    type Out = (Vec<A::Out>, C::Out);
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let mut ri = i.clone();
         let mut res = Vec::new();
         match self.c.parse(&ri) {
-            Ok((r, _, _)) => return Ok((r, res, None)),
+            Ok((r, v, _)) => return Ok((r, (res, v), None)),
             Err(_) => {}
         }
         loop {
@@ -301,7 +316,7 @@ where
                 Err(e) => return Err(e),
             };
             let c_err = match self.c.parse(&ri) {
-                Ok((r, _, _)) => return Ok((r, res, None)),
+                Ok((r, v, _)) => return Ok((r, (res, v), None)),
                 Err(e) => e,
             };
             ri = match self.b.parse(&ri) {
@@ -316,7 +331,8 @@ where
 ///seperators the
 ///close is expected to be some kind of closer like '}'
 ///If you need the close you will have to use sep(..).then(..) though the errors will be less
-///nice
+///nice Recent changes mean that this now returns the ending result aswel, if you wish to ignore
+///that use sep_until_ig
 pub fn sep_until<A, B, C>(a: A, b: B, c: C) -> SepUntil<A, B, C>
 where
     A: Parser,
@@ -326,6 +342,15 @@ where
     SepUntil { a, b, c }
 }
 
+pub fn sep_until_ig<A, B, C>(a: A, b: B, c: C) -> impl Parser<Out = Vec<A::Out>>
+where
+    A: Parser,
+    B: Parser,
+    C: Parser,
+{
+    sep_until(a, b, c).map(|(a, _)| a)
+}
+
 #[cfg(test)]
 pub mod test {
     use super::*;
@@ -333,7 +358,7 @@ pub mod test {
     use crate::*;
     #[test]
     pub fn test_reflecter() {
-        let (av, b, cv) = reflect(s_("("), (Alpha, NumDigit).plus(), s_(")"))
+        let (av, b, cv) = reflect(ws__("("), (Alpha, NumDigit).plus(), ws__(")"))
             .parse_s("(((help)))")
             .unwrap();
 

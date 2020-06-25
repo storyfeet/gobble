@@ -1,6 +1,6 @@
 //! CharBool is the main trait for checking if a character is in a set.
 //! There are several helper methods to turn these into Parsers such as
-//! * star plus min_n exact, skip_plus skip_exact
+//! * star plus min_n exact, iplus iexact
 //!
 //! ```rust
 //! use gobble::*;
@@ -41,15 +41,15 @@ pub trait CharBool: Sized {
     fn plus(self) -> CharPlus<Self> {
         CharPlus { cb: self }
     }
-    fn skip_star(self) -> skip::CharSkip<Self> {
+    fn istar(self) -> skip::CharSkip<Self> {
         skip::CharSkip { cb: self }
     }
 
-    fn skip_plus(self) -> skip::CharSkipPlus<Self> {
+    fn iplus(self) -> skip::CharSkipPlus<Self> {
         skip::CharSkipPlus { cb: self }
     }
 
-    fn skip_exact(self, n: usize) -> skip::CharSkipExact<Self> {
+    fn iexact(self, n: usize) -> skip::CharSkipExact<Self> {
         skip::CharSkipExact { cb: self, n }
     }
     ///```rust

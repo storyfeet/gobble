@@ -132,6 +132,8 @@ where
     a.or(b)
 }
 
+/// While you can use the numbered 'or's you may find the 'or!' macro helpful as that works with
+/// any number of options without needing to count, and returns the exact same result
 pub fn or3<A, B, C, V>(a: A, b: B, c: C) -> impl Parser<Out = V>
 where
     A: Parser<Out = V>,

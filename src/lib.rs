@@ -1,17 +1,18 @@
-//! Gobble is a simple parser combinator system for parsing strings.
+//! Gobble is a simple parser combinator system for parsing strings that aims to leave your
+//! parser looking as much like a declarative grammar as possible while still being rust code
 //!
-//! For example parsing a function call
+//! Creating Parsers in rust should be quite straight forward. For example parsing a function call
 //!
 //! ```rust
 //! use gobble::*;
 //! parser!{
 //!     (Ident->String)
-//!     string((Alpha.one(),(Alpha,NumDigit,'_').star()))
+//!     string((Alpha.one(),(Alpha,NumDigit,'_').istar()))
 //! }
 //!
 //! parser!{
 //!     (FSig->(String,Vec<String>))
-//!     (first(Ident,"("),sep_until(Ident,",",")"))
+//!     (first(Ident,"("),sep_until_ig(Ident,",",")"))
 //! }
 //! let (nm, args) = FSig.parse_s("loadFile1(fname,ref)").unwrap();
 //! assert_eq!(nm, "loadFile1");
@@ -24,9 +25,9 @@
 //!
 //! ```rust
 //! use gobble::*;
-//! let ident = || string_2_parts(Alpha.min_n(1),(Alpha,NumDigit,'_').any());
+//! let ident = || string((Alpha.one(),(Alpha,NumDigit,'_').istar()));
 //!
-//! let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
+//! let fsig = (first(ident(),"("),sep_until_ig(ident(),",",")"));
 //!  
 //!  let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
 //!  assert_eq!(nm, "loadFile1");
@@ -36,7 +37,7 @@
 //!  
 //!  ```
 //!
-//!  But the macros guarantee Zero-Sized types which is nice when combining them
+//!  But the macros guarantee of Zero-Sized types which is nice when combining them
 //!
 //!
 //!  To work this library depends the following:
@@ -114,7 +115,7 @@
 //!  // 'then_ig' drops the result of the second
 //!  // 'sep_until will repeat the first term into a Vec, separated by the second
 //!  //    until the final term.
-//!  let obj = || "{".ig_then(sep_until(keyval(),",","}"));
+//!  let obj = || "{".ig_then(sep_until_ig(keyval(),",","}"));
 //!
 //!  let obs = obj().parse_s(r#"{cat:"Tiddles",dog:"Spot"}"#).unwrap();
 //!  assert_eq!(obs[0],("cat".to_string(),"Tiddles".to_string()));
@@ -140,9 +141,9 @@
 //!  * ```min_n(self,n:usize)```  requires at least n matches and ruturns a string
 //!  * ```star(self)``` '*' matches any number of chars returning a string
 //!  * ```exact(self,n:usize)``` '*' matches exactly n chars returning a string
-//!  * ```skip_plus(self)``` '+' requires at least 1 matches and ruturns a ()
-//!  * ```skip_star(self)``` '*' matches any number of chars returning a ()
-//!  * ```skip_exact(self,n:usize)``` matches exactly n chars returning a ()
+//!  * ```iplus(self)``` '+' requires at least 1 matches and ruturns a ()
+//!  * ```istar(self)``` '*' matches any number of chars returning a ()
+//!  * ```iexact(self,n:usize)``` matches exactly n chars returning a ()
 //!  
 //!  And a helper that returns a CharBool
 //!  * ```except(self,cb:CharBool)``` Passes if self does, and cb doesnt
@@ -179,12 +180,12 @@
 //! let v = sp_id.parse_s("   \t  doggo  ").unwrap();
 //! assert_eq!(v,"doggo");
 //! ```
-//! That said gobble already provides ```ws()``` and ```s_(p)```
+//! That said gobble already provides ```WS``` and ```s_(p)```
 //!
 //! ```rust
 //! use gobble::*;
 //! //eoi = end of input
-//! let p = repeat_until_ig(s_("abc".min_n(1)),eoi);
+//! let p = repeat_until_ig(s_("abc".plus()),eoi);
 //! let r = p.parse_s("aaa \tbbb bab").unwrap();
 //! assert_eq!(r,vec!["aaa","bbb","bab"]);
 //! ```
