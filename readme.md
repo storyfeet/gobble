@@ -15,7 +15,7 @@ parser!{
 
 parser!{
     (FSig->(String,Vec<String>))
-    (first(Ident,"("),sep_until(Ident,",",")"))
+    (first(Ident,"("),sep_until_ig(Ident,",",")"))
 }
 let (nm, args) = FSig.parse_s("loadFile1(fname,ref)").unwrap();
 assert_eq!(nm, "loadFile1");
@@ -30,7 +30,7 @@ If you'd prefer not to use macros, you don't have to:
 use gobble::*;
 let ident = || string((Alpha.one(),(Alpha,NumDigit,'_').istar()));
 
-let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
+let fsig = (first(ident(),"("),sep_until_ig(ident(),",",")"));
  
  let (nm, args) = fsig.parse_s("loadFile1(fname,ref)").unwrap();
  assert_eq!(nm, "loadFile1");
@@ -118,7 +118,7 @@ let fsig = (ident().then_ig("("),sep(ident(),",").then_ig(")"));
  // 'then_ig' drops the result of the second
  // 'sep_until will repeat the first term into a Vec, separated by the second
  //    until the final term.
- let obj = || "{".ig_then(sep_until(keyval(),",","}"));
+ let obj = || "{".ig_then(sep_until_ig(keyval(),",","}"));
 
  let obs = obj().parse_s(r#"{cat:"Tiddles",dog:"Spot"}"#).unwrap();
  assert_eq!(obs[0],("cat".to_string(),"Tiddles".to_string()));
@@ -200,7 +200,7 @@ handle recursion. However with the techniques we have used so far
 this would lead to infinitely sized structures.
 
 The way to handle this is to make sure one member of the loop is not  
-build into the structure. Instead to create it using the 'Fn'
+build into the structure. Instead to create it using the 'Fn' or with a macro which will return a zero sized struct for certain
 
 ```rust
 use gobble::*;

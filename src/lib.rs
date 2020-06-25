@@ -193,11 +193,15 @@
 //! ## Recursive Structures
 //!
 //! Some structures like Json, or programming languages need to be able to
-//! handle recursion. However with the techniques we have used so far
-//! this would lead to infinitely sized structures.
+//! handle recursion.  Simply combining the function parsers could lead
+//! to infinitely sized structures.
 //!
-//! The way to handle this is to make sure one member of the loop is not  
-//! build into the structure. Instead to create it using the 'Fn'
+//! The simplest way to avoid this problem is to use the parser macro.
+//! Every parser created with the macro is zero sized
+//!
+//! But if you would really rather not use the macros, the way to handle this is
+//! to make sure one member of the loop is not builtd into the structure.
+//! Instead to create it using the 'Fn ->ParseRes' method.
 //!
 //! ```rust
 //! use gobble::*;
