@@ -20,20 +20,23 @@ macro_rules! parser {
     ($id:ident,$x:expr) => {
         parser!(($id->&'static str) $x);
     };
-    (($id:ident -> $ot:ty) $(,)? $x:expr $(,)?) => {
-        parser!(($id->$ot) $x, Expected::Str(stringify!($id)));
+    ($($doc:literal)? ($id:ident -> $ot:ty) $(,)? $x:expr $(,)?) => {
+        parser!($($doc)? ($id->$ot) $x, Expected::Str(stringify!($id)));
     };
     ($id:ident,$x:expr,$exp:expr) => {
         parser!(($id->&'static str) $x, $exp);
     };
-    (($id:ident -> $ot:ty) $(,)? $x:expr,$exp:expr $(,)?) => {
+    ($($doc:literal)? ($id:ident -> $ot:ty) $(,)? $x:expr,$exp:expr $(,)?) => {
+        ///The main parser struct
         #[derive(Copy, Clone)]
         pub struct $id;
         impl Parser for $id {
             type Out = $ot;
+            ///Parse run the main parser
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
                 (&$x).parse(it)
             }
+            ///The expected return type
             fn expected(&self) -> Expected {
                 $exp
             }

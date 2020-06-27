@@ -248,6 +248,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.5.1
+* Added auto docs to the macros, hope to improve these soon
+
 ### v 0.5.0
 * Added macros -- Unexpectedly, Somewhat unexpectedly. see the Docs
 * swapped skip_star to istar etc for charbools

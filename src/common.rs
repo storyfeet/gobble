@@ -39,9 +39,9 @@ pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
         .parse(it)
 }
 
-parser! {
-    (Quoted->String)
-    '"'.ig_then(chars_until(or(Esc, Any.one()), '"').map(|(a, _)| a))
+parser! { "A string surrounded in Quotes"
+    (Quoted->String),
+    '"'.ig_then(chars_until(or(Esc, Any.one()), '"').map(|(a, _)| a)),
 }
 
 parser! {
