@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Generally useful base parsers
 //! Str,Int,Uint,Esc,Float
 //!
@@ -29,11 +30,12 @@ use crate::strings::*;
 use crate::tuple::*;
 use std::convert::TryFrom;
 
-parser!(
+parser! { "Escapes a '\' and converts '\\n' '\\t' '\\r'"
     (Esc->char)
     last('\\',or!('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
-);
+}
 
+#[deprecated(since = "0.5.1", note = "use Ident instead")]
 pub fn common_esc<'a>(it: &LCChars<'a>) -> ParseRes<'a, char> {
     '\\'.ig_then(or4('t'.asv('\t'), 'r'.asv('\r'), 'n'.asv('\n'), Any.one()))
         .parse(it)
@@ -44,7 +46,7 @@ parser! { "A string surrounded in Quotes"
     '"'.ig_then(chars_until(or(Esc, Any.one()), '"').map(|(a, _)| a)),
 }
 
-parser! {
+parser! { "A letter followed by numbers and letters or '_'"
     (Ident->String)
     string((Alpha.iplus(), (Alpha, NumDigit, '_').istar()))
 }
@@ -54,11 +56,12 @@ pub fn common_ident<'a>(it: &LCChars<'a>) -> ParseRes<'a, String> {
     Ident.parse(it)
 }
 
-parser! {
+parser! { "a usize"
     (UInt->usize)
     common_uint
 }
 
+#[deprecated(since = "0.5.1", note = " will go private as UInt does the job")]
 pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
     let mut added = false;
     let mut res: usize = 0;
@@ -85,7 +88,7 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
     }
 }
 
-parser! {
+parser! { "Returns a parsed isize"
     (Int->isize)
     (maybe('-'),UInt).try_map(|(m,n)|{
         let n = isize::try_from(n).map_err(|_|Expected::Str("Int too big"))?;
@@ -96,7 +99,7 @@ parser! {
     })
 }
 
-parser! {
+parser! { "the words 'true' or 'false'"
     (Bool->bool)
     or(keyword("true").map(|_|true),keyword("false").map(|_|false))
 }
@@ -121,12 +124,12 @@ fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
     }
 }
 
-parser! {
+parser! {"'e' followed by a uint, allowed on floats"
     (Exponent->isize)
     last('e',Int)
 }
 
-parser! {
+parser! { "floating point numbers eg '134.4e6'"
     (Float->f64)
     (Int,dot_part,maybe(Exponent)).map(|(n,d,e)|{
         let mut res =n as f64;
