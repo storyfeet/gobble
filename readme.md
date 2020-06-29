@@ -248,6 +248,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.5.3
+* Added Hash to error type
+
 ### v 0.5.2 
 * Added catch for repeats on zero length parse results
 * StrungErr now implements PartialEq

@@ -204,7 +204,7 @@ impl PartialOrd for ParseError {
 }
 
 //The StrungError has the &str it was parsed from attached to it.
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Error, PartialEq, Hash)]
 pub struct StrError<'a> {
     pub s: &'a str,
     pub pe: ParseError,
@@ -217,7 +217,7 @@ impl<'a> fmt::Display for StrError<'a> {
 }
 
 //The StrungError has the String it was parsed from attached to it.
-#[derive(Debug, Clone, Error, PartialEq)]
+#[derive(Debug, Clone, Error, PartialEq, Hash)]
 pub struct StrungError {
     pub s: String,
     pub pe: ParseError,
