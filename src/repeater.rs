@@ -183,19 +183,27 @@ where
 pub fn do_rep<'a, A: Parser>(i: &LCChars<'a>, a: &A, min: usize) -> ParseRes<'a, Vec<A::Out>> {
     let mut ri = i.clone();
     let mut res = Vec::new();
+    //This closure exists to to make sure th
+    let f_done = |it: LCChars<'a>, fres: Vec<A::Out>| {
+        if fres.len() < min {
+            it.err_p_r(a)
+        } else {
+            let eo = it.err_p_o(a);
+            Ok((it, fres, eo))
+        }
+    };
+
     loop {
         ri = match a.parse(&ri) {
             Ok((r, v, _)) => {
+                if ri.lc() == r.lc() {
+                    return f_done(ri, res);
+                }
                 res.push(v);
                 r
             }
             Err(_) => {
-                if res.len() < min {
-                    return i.err_p_r(a);
-                } else {
-                    let eo = ri.err_p_o(a);
-                    return Ok((ri, res, eo));
-                }
+                return f_done(ri, res);
             }
         }
     }
@@ -257,6 +265,9 @@ fn do_repeat_until<'a, A: Parser, B: Parser>(
         };
         ri = match a.parse(&ri) {
             Ok((r, v, _)) => {
+                if r.lc() == ri.lc() {
+                    return ri.err_p_r(a);
+                }
                 res.push(v);
                 r
             }

@@ -217,7 +217,7 @@ impl<'a> fmt::Display for StrError<'a> {
 }
 
 //The StrungError has the String it was parsed from attached to it.
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Error, PartialEq)]
 pub struct StrungError {
     pub s: String,
     pub pe: ParseError,

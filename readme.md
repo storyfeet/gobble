@@ -248,6 +248,11 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.5.2 
+* Added catch for repeats on zero length parse results
+* StrungErr now implements PartialEq
+
+
 ### v 0.5.1
 * Added auto docs to the macros, hope to improve these soon
 
