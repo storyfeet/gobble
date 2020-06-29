@@ -91,3 +91,32 @@ pub struct FailOn<P: Parser> {
 pub fn fail_on<P: Parser>(p: P) -> FailOn<P> {
     FailOn { p }
 }
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct PDebugger<P: Parser> {
+    p: P,
+    s: &'static str,
+}
+
+pub fn debug<P: Parser>(p: P, s: &'static str) -> PDebugger<P> {
+    PDebugger { p, s }
+}
+
+impl<P: Parser> Parser for PDebugger<P> {
+    type Out = P::Out;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        println!("DebuggerPre - {}", self.s);
+        let r = self.p.parse(it);
+        match &r {
+            Ok((nit, _, _)) => {
+                let s = match (it.index(), nit.index()) {
+                    (Some(st), Some(f)) => &it.as_str()[..f - st],
+                    _ => it.as_str(),
+                };
+                println!("Success - {}, \"{}\"", self.s, s);
+            }
+            Err(_) => println!("Fail - {}", self.s),
+        };
+        r
+    }
+}

@@ -34,7 +34,14 @@ macro_rules! parser {
             type Out = $ot;
             ///Parse run the main parser
             fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-                (&$x).parse(it)
+                let name_e = it.err_p(self);
+                match (&$x).parse(it){
+                    Ok(v)=> Ok(v),
+                    Err(e)=> match (e.index,name_e.index) {
+                        (Some(ei),Some(ii)) if (ii == ei) => it.err_p_r(self),
+                        _=>Err(e.wrap(name_e)),
+                    }
+                }
             }
             ///The expected return type
             fn expected(&self) -> Expected {
