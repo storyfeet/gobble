@@ -170,6 +170,10 @@ impl<P: Parser> Parser for Peek<P> {
         let (_, v, c) = self.p.parse(it)?;
         Ok((it.clone(), v, c))
     }
+
+    fn expected(&self) -> Expected {
+        self.p.expected()
+    }
 }
 
 pub fn peek<P: Parser>(p: P) -> Peek<P> {
