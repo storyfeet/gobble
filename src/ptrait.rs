@@ -1,5 +1,7 @@
 use crate::err::{longer, Expected, ParseError};
 use crate::iter::LCChars;
+use crate::pull::PullParser;
+use crate::reader::EOI;
 use std::cmp::Ordering;
 
 pub type ParseRes<'a, V> = Result<(LCChars<'a>, V, Option<ParseError>), ParseError>;
@@ -75,6 +77,24 @@ pub trait Parser: Sized {
 
     fn brk(self) -> Break<Self> {
         Break { p: self }
+    }
+
+    fn pull<'a>(self, s: &'a str) -> PullParser<'a, Self, EOI> {
+        PullParser {
+            p: self,
+            end: EOI,
+            s,
+            it: LCChars::str(s),
+        }
+    }
+
+    fn pull_to<'a, E: Parser>(self, end: E, s: &'a str) -> PullParser<'a, Self, E> {
+        PullParser {
+            p: self,
+            end,
+            s,
+            it: LCChars::str(s),
+        }
     }
 }
 

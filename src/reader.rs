@@ -148,6 +148,10 @@ pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static s
     Ok((i, tg, None))
 }
 
+parser! {(EOI->())
+    eoi
+}
+
 pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
     let mut r = i.clone();
     if r.next() == None {

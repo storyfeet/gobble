@@ -203,7 +203,7 @@ impl PartialOrd for ParseError {
     }
 }
 
-//The StrungError has the &str it was parsed from attached to it.
+//The Str Error has the &str it was parsed from attached to it.
 #[derive(Debug, Clone, Error, PartialEq, Eq, Hash)]
 pub struct StrError<'a> {
     pub s: &'a str,
