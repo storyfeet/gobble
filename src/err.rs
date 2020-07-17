@@ -204,10 +204,16 @@ impl PartialOrd for ParseError {
 }
 
 //The Str Error has the &str it was parsed from attached to it.
-#[derive(Debug, Clone, Error, PartialEq, Eq, Hash)]
+#[derive(Clone, Error, PartialEq, Eq, Hash)]
 pub struct StrError<'a> {
     pub s: &'a str,
     pub pe: ParseError,
+}
+
+impl<'a> fmt::Debug for StrError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.pe.print_on(self.s))
+    }
 }
 
 impl<'a> fmt::Display for StrError<'a> {
@@ -217,12 +223,17 @@ impl<'a> fmt::Display for StrError<'a> {
 }
 
 //The StrungError has the String it was parsed from attached to it.
-#[derive(Debug, Clone, Error, PartialEq, Eq, Hash)]
+#[derive(Clone, Error, PartialEq, Eq, Hash)]
 pub struct StrungError {
     pub s: String,
     pub pe: ParseError,
 }
 
+impl<'a> fmt::Debug for StrungError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.pe.print_on(&self.s))
+    }
+}
 impl fmt::Display for StrungError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.pe.deep_print(&self.s))

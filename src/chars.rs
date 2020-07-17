@@ -272,6 +272,9 @@ impl<CB: CharBool> Parser for CharStar<CB> {
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         do_chars(it, &self.cb, 0, false)
     }
+    fn expected(&self) -> Expected {
+        self.cb.expected()
+    }
 }
 
 #[derive(Clone)]
