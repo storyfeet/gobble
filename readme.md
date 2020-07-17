@@ -250,6 +250,9 @@ assert_eq!(r,Expr::Add(
 
 ### v 0.5.3
 * Added Hash to error type
+* Added Exists method
+* Added not method for charbool
+* Added or_ig!() to ig the result of all inner parsers.
 
 ### v 0.5.2 
 * Added catch for repeats on zero length parse results
