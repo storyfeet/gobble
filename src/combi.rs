@@ -43,6 +43,24 @@ pub fn maybe<P: Parser>(p: P) -> Maybe<P> {
     Maybe { p }
 }
 
+pub struct Exists<P: Parser> {
+    p: P,
+}
+
+impl<P: Parser> Parser for Exists<P> {
+    type Out = bool;
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, bool> {
+        match self.p.parse(it) {
+            Ok((nit, _, e)) => Ok((nit, true, e)),
+            Err(e) => Ok((it.clone(), false, Some(e))),
+        }
+    }
+}
+
+pub fn exists<P: Parser>(p: P) -> Exists<P> {
+    Exists { p }
+}
+
 #[derive(Clone)]
 pub struct Wrap<A, B> {
     a: A,

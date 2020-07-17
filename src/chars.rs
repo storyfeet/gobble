@@ -68,6 +68,23 @@ pub trait CharBool: Sized {
     }
 }
 
+pub struct CharNot<C: CharBool> {
+    c: C,
+}
+
+pub fn not<C: CharBool>(c: C) -> CharNot<C> {
+    CharNot { c }
+}
+
+impl<C: CharBool> CharBool for CharNot<C> {
+    fn char_bool(&self, c: char) -> bool {
+        !self.c.char_bool(c)
+    }
+    fn expected(&self) -> Expected {
+        Expected::Except(Box::new(self.c.expected()))
+    }
+}
+
 pub fn is_alpha(c: char) -> bool {
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }

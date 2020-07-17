@@ -80,21 +80,11 @@ pub trait Parser: Sized {
     }
 
     fn pull<'a>(self, s: &'a str) -> PullParser<'a, Self, EOI> {
-        PullParser {
-            p: self,
-            end: EOI,
-            s,
-            it: LCChars::str(s),
-        }
+        PullParser::new(self, s)
     }
 
     fn pull_to<'a, E: Parser>(self, end: E, s: &'a str) -> PullParser<'a, Self, E> {
-        PullParser {
-            p: self,
-            end,
-            s,
-            it: LCChars::str(s),
-        }
+        PullParser::with_end(self, end, s)
     }
 }
 

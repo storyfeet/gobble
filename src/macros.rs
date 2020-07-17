@@ -159,6 +159,11 @@ macro_rules! or{
     ($s:expr,$($x:expr),* $(,)?) => { $s$(.or($x))*;};
 }
 
+#[macro_export]
+macro_rules! or_ig{
+    ($s:expr,$($x:expr),* $(,)?) => { $s.ig()$(.or($x.ig()))*;};
+}
+
 #[cfg(test)]
 mod test {
 
