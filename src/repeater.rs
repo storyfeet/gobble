@@ -50,7 +50,7 @@ where
 {
     type Out = (Vec<A::Out>, B::Out, Vec<C::Out>);
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        let (ni, (va, b), _) = do_repeat_until(it, &self.a, &self.b)?;
+        let (ni, (va, b), _) = do_repeat_until(it, 1, &self.a, &self.b)?;
         let (fi, vc, _) = do_exact(&ni, &self.c, va.len())?;
         Ok((fi, (va, b, vc), None))
     }
@@ -253,15 +253,20 @@ pub fn plus<A: Parser>(a: A) -> RepPlus<A> {
 
 fn do_repeat_until<'a, A: Parser, B: Parser>(
     it: &LCChars<'a>,
+    min: i32,
     a: &A,
     b: &B,
 ) -> ParseRes<'a, (Vec<A::Out>, B::Out)> {
     let mut ri = it.clone();
     let mut res = Vec::new();
+    let mut done = 0;
     loop {
-        let b_err = match b.parse(&ri) {
-            Ok((r, v, _)) => return Ok((r, (res, v), None)),
-            Err(e) => e,
+        let b_err = match done >= min {
+            true => match b.parse(&ri) {
+                Ok((r, v, _)) => return Ok((r, (res, v), None)),
+                Err(e) => Some(e),
+            },
+            false => None,
         };
         ri = match a.parse(&ri) {
             Ok((r, v, _)) => {
@@ -271,31 +276,65 @@ fn do_repeat_until<'a, A: Parser, B: Parser>(
                 res.push(v);
                 r
             }
-            Err(e) => return Err(longer(e, b_err).wrap(ri.err("Repeat"))),
-        }
+            Err(e) => {
+                return match b_err {
+                    Some(b_err) => Err(longer(e, b_err).wrap(ri.err("Repeat"))),
+                    None => Err(e),
+                }
+            }
+        };
+        done += 1;
     }
 }
 
-pub struct RepUntil<A, B> {
+pub struct StarUntil<A, B> {
     a: A,
     b: B,
 }
 
-impl<A: Parser, B: Parser> Parser for RepUntil<A, B> {
+impl<A: Parser, B: Parser> Parser for StarUntil<A, B> {
     type Out = (Vec<A::Out>, B::Out);
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        do_repeat_until(i, &self.a, &self.b)
+        do_repeat_until(i, 0, &self.a, &self.b)
+    }
+}
+
+pub struct PlusUntil<A, B> {
+    a: A,
+    b: B,
+}
+
+impl<A: Parser, B: Parser> Parser for PlusUntil<A, B> {
+    type Out = (Vec<A::Out>, B::Out);
+    fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_repeat_until(i, 1, &self.a, &self.b)
     }
 }
 
 ///Repeats the first parser until the second parser.
 ///returns a vec of the first parsers results
-pub fn repeat_until<A: Parser, B: Parser>(a: A, b: B) -> RepUntil<A, B> {
-    RepUntil { a, b }
+#[deprecated(since = "0.5.2", note = "use star_until instead")]
+pub fn repeat_until<A: Parser, B: Parser>(a: A, b: B) -> StarUntil<A, B> {
+    StarUntil { a, b }
+}
+
+pub fn star_until<A: Parser, B: Parser>(a: A, b: B) -> StarUntil<A, B> {
+    StarUntil { a, b }
+}
+pub fn plus_until<A: Parser, B: Parser>(a: A, b: B) -> PlusUntil<A, B> {
+    PlusUntil { a, b }
 }
 
 pub fn repeat_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
-    repeat_until(a, b).map(|(a, _)| a)
+    star_until(a, b).map(|(a, _)| a)
+}
+
+#[deprecated(since = "0.5.2", note = "use star_until_ig instead")]
+pub fn star_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
+    star_until(a, b).map(|(a, _)| a)
+}
+pub fn plus_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
+    plus_until(a, b).map(|(a, _)| a)
 }
 
 pub struct SepUntil<A, B, C> {
