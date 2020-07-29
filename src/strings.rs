@@ -1,3 +1,4 @@
+use crate::err::longer;
 use crate::iter::LCChars;
 use crate::ptrait::*;
 
@@ -20,6 +21,58 @@ where
         let mut s: String = av.into();
         s.push_str(bv.as_ref());
         Ok((itres, s, c2))
+    }
+}
+
+pub fn strings_plus_until<A: Parser<Out = String>, B: Parser>(
+    a: A,
+    b: B,
+) -> StringsPlusUntil<A, B> {
+    StringsPlusUntil { a, b }
+}
+
+pub struct StringsPlusUntil<A: Parser<Out = String>, B> {
+    a: A,
+    b: B,
+}
+
+pub fn do_strings_until<'a, A: Parser<Out = String>, B: Parser>(
+    it: &LCChars<'a>,
+    a: &A,
+    b: &B,
+    min: usize,
+) -> ParseRes<'a, (String, B::Out)> {
+    let mut res = String::new();
+    let mut it = it.clone();
+    let mut done = 0;
+    loop {
+        let b_err = if done >= min {
+            match b.parse(&it) {
+                Ok((nit, v, e)) => return Ok((nit, (res, v), e)),
+                Err(e) => Some(e),
+            }
+        } else {
+            None
+        };
+        match a.parse(&it) {
+            Ok((nit, v, _e)) => {
+                res.push_str(&v);
+                it = nit;
+                done += 1;
+            }
+            Err(e) => {
+                if let Some(berr) = b_err {
+                    return Err(longer(e, berr));
+                }
+            }
+        }
+    }
+}
+
+impl<A: Parser<Out = String>, B: Parser> Parser for StringsPlusUntil<A, B> {
+    type Out = (String, B::Out);
+    fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
+        do_strings_until(it, &self.a, &self.b, 1)
     }
 }
 

@@ -325,11 +325,11 @@ pub fn plus_until<A: Parser, B: Parser>(a: A, b: B) -> PlusUntil<A, B> {
     PlusUntil { a, b }
 }
 
+#[deprecated(since = "0.5.2", note = "use star_until_ig or plus_until_ig instead")]
 pub fn repeat_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
     star_until(a, b).map(|(a, _)| a)
 }
 
-#[deprecated(since = "0.5.2", note = "use star_until_ig instead")]
 pub fn star_until_ig<A: Parser, B: Parser>(a: A, b: B) -> impl Parser<Out = Vec<A::Out>> {
     star_until(a, b).map(|(a, _)| a)
 }
