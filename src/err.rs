@@ -1,4 +1,3 @@
-//use failure_derive::*;
 use std::cmp::Ordering;
 //use std::error::Error;
 use std::fmt;
@@ -49,7 +48,6 @@ impl Expected {
             v => Expected::OneOf(vec![v, b]),
         }
     }
-
     pub fn except(a: Self) -> Self {
         Expected::Except(Box::new(a))
     }
@@ -68,99 +66,82 @@ impl Expected {
     }
 }
 
-pub fn longer(mut a: ParseError, b: ParseError) -> ParseError {
-    match a.partial_cmp(&b) {
-        Some(Ordering::Greater) => a,
-        Some(Ordering::Less) => b,
-        _ => {
-            let rex = match (a.exp, b.exp) {
-                (Expected::OneOf(mut av), Expected::OneOf(bv)) => {
-                    av.extend(bv);
-                    Expected::OneOf(av)
-                }
-                (Expected::OneOf(mut v), e) | (e, Expected::OneOf(mut v)) => {
-                    v.push(e);
-                    Expected::OneOf(v)
-                }
-                (a, b) => Expected::OneOf(vec![a, b]),
-            };
-            a.exp = rex;
-            a
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Error, Hash)]
-#[error("Parse Error {} at  {},{}: Expected {}",.is_brk, .line, .col, .exp)]
-pub struct ParseError {
+#[derive(Clone, PartialEq, Eq, Error, Hash)]
+pub struct PErr<'a> {
     pub exp: Expected,
+    pub found: &'a str,
     pub index: Option<usize>,
     pub line: usize,
     pub col: usize,
     pub is_brk: bool,
-    pub child: Option<Box<ParseError>>,
+    pub child: Option<Box<PErr<'a>>>,
 }
 
-impl ParseError {
-    pub fn new(s: &'static str, index: Option<usize>, line: usize, col: usize) -> Self {
-        ParseError {
-            exp: Expected::Str(s),
-            index,
-            line,
-            col,
-            is_brk: false,
-            child: None,
-        }
+fn compare_index(a: &Option<usize>, b: &Option<usize>) -> Ordering {
+    match (a, b) {
+        (Some(a), Some(b)) => a.cmp(b),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        _ => Ordering::Equal,
     }
-    pub fn expect(exp: Expected, index: Option<usize>, line: usize, col: usize) -> ParseError {
-        ParseError {
-            exp,
-            index,
-            line,
-            col,
-            is_brk: false,
-            child: None,
+}
+
+fn join_children<'a>(a: Option<Box<PErr<'a>>>, b: Option<Box<PErr<'a>>>) -> Option<Box<PErr<'a>>> {
+    match (a, b) {
+        (Some(ac), Some(bc)) => Some(Box::new((*ac).join(*bc))),
+        (None, b) => b,
+        (a, None) => a,
+    }
+}
+
+impl<'a> PErr<'a> {
+    pub fn join(mut self, mut b: Self) -> Self {
+        match compare_index(&self.index, &b.index) {
+            Ordering::Greater => {
+                self.child = join_children(self.child, Some(Box::new(b)));
+                self
+            }
+            Ordering::Less => {
+                b.child = join_children(b.child, Some(Box::new(self)));
+                b
+            }
+            _ => {
+                self.child = join_children(self.child, b.child);
+                self.exp = match (self.exp, b.exp) {
+                    (Expected::OneOf(mut ae), Expected::OneOf(be)) => {
+                        ae.extend(be);
+                        Expected::OneOf(ae)
+                    }
+                    (Expected::OneOf(mut ae), b) | (b, Expected::OneOf(mut ae)) => {
+                        if b != Expected::WS {
+                            ae.push(b);
+                        }
+                        Expected::OneOf(ae)
+                    }
+                    (a, b) => Expected::OneOf(vec![a, b]),
+                };
+                self
+            }
         }
     }
 
-    pub fn cont(self, o: Option<Self>) -> Self {
-        match o {
-            Some(e2) => longer(self, e2),
+    pub fn join_op(self, b: Option<Self>) -> Self {
+        match b {
+            Some(v) => self.join(v),
             None => self,
         }
     }
 
-    pub fn on_str<'a>(self, s: &'a str) -> StrError<'a> {
-        StrError { pe: self, s }
-    }
-
-    pub fn strung(self, s: String) -> StrungError {
-        StrungError { pe: self, s }
-    }
-
-    pub fn print_on(&self, s: &str) -> String {
-        let (pstr, ids): (String, String) = match self.index {
-            Some(i) => (s[i..].chars().take(10).collect(), i.to_string()),
-            None => ("EOI".to_string(), "EOI".to_string()),
-        };
-
-        format!(
-            "    At i:{},l:{},c:{} -- Expected {} -- Found {:?}\n",
-            ids, self.line, self.col, self.exp, pstr,
-        )
-    }
-
-    pub fn print_on_d(&self, s: &str) -> String {
-        let mut res = self.print_on(s);
-        if let Some(ref c) = self.child {
-            res.push_str(&c.print_on(s));
+    pub fn strung(self) -> StrungError {
+        StrungError {
+            exp: self.exp,
+            found: self.found.to_string(),
+            line: self.line,
+            col: self.col,
+            index: self.index,
+            is_brk: self.is_brk,
+            child: self.child.map(|v| Box::new((*v).strung())),
         }
-        res
-    }
-    pub fn deep_print(&self, s: &str) -> String {
-        let mut res = "\nErr :\n".to_string();
-        res.push_str(&self.print_on_d(s));
-        res
     }
 
     pub fn wrap(mut self, ne: Self) -> Self {
@@ -171,80 +152,91 @@ impl ParseError {
         self
     }
 
-    pub fn new_exp(mut self, nexp: Expected) -> ParseError {
+    /*pub fn new_exp(mut self, nexp: Expected) -> ParseError {
         self.exp = nexp;
         self
-    }
-
-    pub fn is_break(&self) -> bool {
-        self.is_brk
-    }
+    }*/
 
     pub fn brk(mut self) -> Self {
         self.is_brk = true;
         self
     }
 
-    pub fn de_brk(mut self) -> Self {
-        self.is_brk = false;
+    pub fn set_brk(mut self, b: bool) -> Self {
+        self.is_brk = b;
         self
     }
 }
-
-impl PartialOrd for ParseError {
-    fn partial_cmp(&self, b: &Self) -> Option<Ordering> {
-        //None means the end of the string
-        match (self.index, b.index) {
-            (None, None) => Some(Ordering::Equal),
-            (None, Some(_)) => Some(Ordering::Greater),
-            (Some(_), None) => Some(Ordering::Less),
-            (Some(av), Some(bv)) => av.partial_cmp(&bv),
+impl<'a> fmt::Debug for PErr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let i_str = match self.index {
+            Some(n) => n.to_string(),
+            None => "EOI".to_string(),
+        };
+        write!(
+            f,
+            "Expected '{}', Found '{}', at (i={},l={},c={})\n",
+            self.exp, self.found, i_str, self.line, self.col
+        )
+    }
+}
+impl<'a> fmt::Display for PErr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let i_str = match self.index {
+            Some(n) => n.to_string(),
+            None => "EOI".to_string(),
+        };
+        write!(
+            f,
+            "Expected '{}', Found '{}', at (i={},l={},c={})\n",
+            self.exp, self.found, i_str, self.line, self.col
+        )?;
+        if let Some(ref c) = self.child {
+            write!(f, "\t{}", c)?
         }
-    }
-}
-
-//The Str Error has the &str it was parsed from attached to it.
-#[derive(Clone, Error, PartialEq, Eq, Hash)]
-pub struct StrError<'a> {
-    pub s: &'a str,
-    pub pe: ParseError,
-}
-
-impl<'a> fmt::Debug for StrError<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.pe.print_on(self.s))
-    }
-}
-
-impl<'a> fmt::Display for StrError<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.pe.print_on(self.s))
+        Ok(())
     }
 }
 
 //The StrungError has the String it was parsed from attached to it.
 #[derive(Clone, Error, PartialEq, Eq, Hash)]
 pub struct StrungError {
-    pub s: String,
-    pub pe: ParseError,
+    pub exp: Expected,
+    pub found: String,
+    pub index: Option<usize>,
+    pub line: usize,
+    pub col: usize,
+    pub is_brk: bool,
+    pub child: Option<Box<StrungError>>,
 }
 
-impl<'a> fmt::Debug for StrungError {
+impl fmt::Debug for StrungError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.pe.print_on(&self.s))
+        let i_str = match self.index {
+            Some(n) => n.to_string(),
+            None => "EOI".to_string(),
+        };
+        write!(
+            f,
+            "Expected '{}', Found '{}', at (i={},l={},c={})\n",
+            self.exp, self.found, i_str, self.line, self.col
+        )
     }
 }
 impl fmt::Display for StrungError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.pe.deep_print(&self.s))
-    }
-}
-
-impl<'a> From<StrError<'a>> for StrungError {
-    fn from(se: StrError<'a>) -> Self {
-        StrungError {
-            pe: se.pe,
-            s: se.s.into(),
+        let i_str = match self.index {
+            Some(n) => n.to_string(),
+            None => "EOI".to_string(),
+        };
+        write!(
+            f,
+            "Expected '{}', Found '{}', at (i={},l={},c={})\n",
+            self.exp, self.found, i_str, self.line, self.col
+        )?;
+        if let Some(ref c) = self.child {
+            write!(f, "\t{}", c)?
         }
+        Ok(())
     }
 }

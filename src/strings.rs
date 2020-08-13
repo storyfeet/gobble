@@ -1,4 +1,3 @@
-use crate::err::longer;
 use crate::iter::LCChars;
 use crate::ptrait::*;
 
@@ -17,7 +16,7 @@ where
     type Out = String;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, String> {
         let (it2, av, c1) = self.a.parse(it)?;
-        let (itres, bv, c2) = self.b.parse(&it2).map_err(|e| e.cont(c1))?;
+        let (itres, bv, c2) = self.b.parse(&it2).map_err(|e| e.join_op(c1))?;
         let mut s: String = av.into();
         s.push_str(bv.as_ref());
         Ok((itres, s, c2))
@@ -62,7 +61,7 @@ pub fn do_strings_until<'a, A: Parser<Out = String>, B: Parser>(
             }
             Err(e) => {
                 if let Some(berr) = b_err {
-                    return Err(longer(e, berr));
+                    return Err(e.join(berr));
                 }
             }
         }

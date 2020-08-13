@@ -73,16 +73,16 @@ pub fn common_uint<'a>(it: &LCChars<'a>) -> ParseRes<'a, usize> {
                 added = true;
                 res = res
                     .checked_mul(10)
-                    .ok_or(it.err("Num too big"))?
+                    .ok_or(it.err_s("A Smaller number"))?
                     .checked_add(v as usize - '0' as usize)
-                    .ok_or(it.err("Num too big"))?;
+                    .ok_or(it.err_s("A Smaller number"))?;
             }
             Some('_') => {}
             _ => {
                 if added {
                     return Ok((it2, res, None));
                 }
-                return it2.err_r("[0-9]*");
+                return it2.err_rs("[0-9]*");
             }
         }
     }
@@ -109,7 +109,7 @@ fn dot_part<'a>(i: &LCChars<'a>) -> ParseRes<'a, f64> {
     let mut exp = 0.1;
     let mut it = i.clone();
     if it.next() != Some('.') {
-        return i.err_r("no_dot_part");
+        return i.err_rs("A Dot");
     }
     loop {
         let it2 = it.clone();

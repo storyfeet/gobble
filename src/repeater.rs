@@ -1,4 +1,3 @@
-use crate::err::longer;
 use crate::iter::LCChars;
 use crate::ptrait::*;
 
@@ -114,10 +113,10 @@ fn do_sep<'a, A: Parser, B: Parser>(
             }
             Err(_) => {
                 if res.len() == 0 && min == 0 {
-                    let eo = ri.err_p_o(a);
+                    let eo = ri.err_op(a);
                     return Ok((ri, res, eo));
                 }
-                return i.err_p_r(a);
+                return i.err_rp(a);
             }
         };
         //try sep if not found, return
@@ -125,7 +124,7 @@ fn do_sep<'a, A: Parser, B: Parser>(
             Ok((r, _, _)) => r,
             Err(e) => {
                 if res.len() < min {
-                    return ri.err_p_r(b);
+                    return ri.err_rp(b);
                 } else {
                     return Ok((ri, res, Some(e)));
                 }
@@ -186,9 +185,9 @@ pub fn do_rep<'a, A: Parser>(i: &LCChars<'a>, a: &A, min: usize) -> ParseRes<'a,
     //This closure exists to to make sure th
     let f_done = |it: LCChars<'a>, fres: Vec<A::Out>| {
         if fres.len() < min {
-            it.err_p_r(a)
+            it.err_rp(a)
         } else {
-            let eo = it.err_p_o(a);
+            let eo = it.err_op(a);
             Ok((it, fres, eo))
         }
     };
@@ -271,14 +270,14 @@ fn do_repeat_until<'a, A: Parser, B: Parser>(
         ri = match a.parse(&ri) {
             Ok((r, v, _)) => {
                 if r.lc() == ri.lc() {
-                    return ri.err_p_r(a);
+                    return ri.err_rp(a);
                 }
                 res.push(v);
                 r
             }
             Err(e) => {
                 return match b_err {
-                    Some(b_err) => Err(longer(e, b_err).wrap(ri.err("Repeat"))),
+                    Some(b_err) => Err(e.join(b_err)),
                     None => Err(e),
                 }
             }
@@ -371,7 +370,7 @@ where
             };
             ri = match self.b.parse(&ri) {
                 Ok((r, _, _)) => r,
-                Err(e) => return Err(longer(e, c_err).wrap(ri.err_p(self))),
+                Err(e) => return Err(e.join(c_err)),
             }
         }
     }

@@ -16,10 +16,10 @@ pub fn do_skip_c<'a, CB: CharBool>(
             Some(c) if cb.char_bool(c) => done += 1,
             Some(_) | None => {
                 if done >= min {
-                    let eo = it2.err_cb_o(cb);
+                    let eo = it2.err_oc(cb);
                     return Ok((it2, (), eo));
                 } else {
-                    return it2.err_ex_r(cb.expected());
+                    return it2.err_r(cb.expected());
                 }
             }
         }

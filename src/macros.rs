@@ -38,7 +38,7 @@ macro_rules! parser {
                 match (&$x).parse(it){
                     Ok(v)=> Ok(v),
                     Err(e)=> match (e.index,name_e.index) {
-                        (Some(ei),Some(ii)) if (ii == ei) => it.err_p_r(self),
+                        (Some(ei),Some(ii)) if (ii == ei) => it.err_rp(self),
                         _=>Err(e.wrap(name_e)),
                     }
                 }

@@ -75,8 +75,8 @@ where
     type Out = B::Out;
     fn parse<'a>(&self, i: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
         let (i, _, c1) = self.a.parse(i)?;
-        let (i, res, c2) = self.b.parse(&i).map_err(|e| e.cont(c1))?;
-        let (n, _, c3) = self.a.parse(&i).map_err(|e| e.cont(c2))?;
+        let (i, res, c2) = self.b.parse(&i).map_err(|e| e.join_op(c1))?;
+        let (n, _, c3) = self.a.parse(&i).map_err(|e| e.join_op(c2))?;
         Ok((n, res, c3))
     }
 }
@@ -93,7 +93,7 @@ impl<P: Parser<Out = V>, V: Debug> Parser for FailOn<P> {
     type Out = ();
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, ()> {
         match self.p.parse(it) {
-            Ok((_, _, _)) => it.err_p_r(self),
+            Ok((_, _, _)) => it.err_rp(self),
             Err(_) => Ok((it.clone(), (), None)),
         }
     }

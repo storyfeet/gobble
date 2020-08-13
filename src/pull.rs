@@ -1,4 +1,4 @@
-use crate::err::StrError;
+use crate::err::*;
 use crate::iter::LCChars;
 use crate::ptrait::*;
 use crate::reader::EOI;
@@ -29,7 +29,7 @@ impl<'a, P: Parser, E: Parser> PullParser<'a, P, E> {
 }
 
 impl<'a, P: Parser, E: Parser> Iterator for PullParser<'a, P, E> {
-    type Item = Result<P::Out, StrError<'a>>;
+    type Item = Result<P::Out, PErr<'a>>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.errored {
             return None;
@@ -43,7 +43,7 @@ impl<'a, P: Parser, E: Parser> Iterator for PullParser<'a, P, E> {
                 Ok(_) => None,
                 Err(_) => {
                     self.errored = true;
-                    Some(Err(e.on_str(self.s)))
+                    Some(Err(e))
                 }
             },
         }

@@ -65,7 +65,7 @@ fn main() -> Result<(), std::io::Error> {
         }
         match first(RtExpr, ("\n", eoi)).parse_s(&s) {
             Ok(v) => println!("{:?}", v),
-            Err(e) => println!("{}", e.deep_print(&s)),
+            Err(e) => println!("{}", e),
         }
     }
     //Ok(())

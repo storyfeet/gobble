@@ -228,11 +228,11 @@ where
 
 pub fn do_one_char<'a, CB: CharBool>(i: &LCChars<'a>, cb: &CB) -> ParseRes<'a, char> {
     let mut i2 = i.clone();
-    let ic = i2.next().ok_or(i2.err_ex(cb.expected()))?;
+    let ic = i2.next().ok_or(i2.err(cb.expected()))?;
     if cb.char_bool(ic) {
         Ok((i2, ic, None))
     } else {
-        i.err_ex_r(cb.expected())
+        i.err_r(cb.expected())
     }
 }
 
@@ -267,10 +267,10 @@ pub fn do_chars<'a, CB: CharBool>(
             }
             Some(_) | None => {
                 if res.len() >= min {
-                    let eo = it2.err_cb_o(cb);
+                    let eo = it2.err_oc(cb);
                     return Ok((it2, res, eo));
                 } else {
-                    return it2.err_ex_r(cb.expected());
+                    return it2.err_r(cb.expected());
                 }
             }
         }

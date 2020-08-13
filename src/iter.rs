@@ -1,5 +1,5 @@
 use crate::chars::CharBool;
-use crate::err::{Expected, ParseError};
+use crate::err::{Expected, PErr};
 use crate::ptrait::{ParseRes, Parser};
 use std::str::{CharIndices, Chars};
 
@@ -32,39 +32,44 @@ impl<'a> LCChars<'a> {
         self.iter.as_str()
     }
 
-    pub fn err(&self, s: &'static str) -> ParseError {
-        //println!("err {} {} ", self.l, self.c);
-        ParseError::new(s, self.index(), self.l, self.c)
-    }
-    pub fn err_r<V>(&self, s: &'static str) -> Result<V, ParseError> {
-        Err(self.err(s))
+    pub fn err(&self, exp: Expected) -> PErr<'a> {
+        let found = self.iter.as_str();
+        let flen = found.len().min(10);
+        PErr {
+            exp,
+            found: &found[..flen],
+            index: self.index(),
+            line: self.l,
+            col: self.c,
+            is_brk: false,
+            child: None,
+        }
     }
 
-    pub fn err_p<P: Parser>(&self, p: &P) -> ParseError {
-        ParseError::expect(p.expected(), self.index(), self.l, self.c)
+    pub fn err_s(&self, s: &'static str) -> PErr<'a> {
+        self.err(Expected::Str(s))
     }
-    pub fn err_p_r<P: Parser, V>(&self, p: &P) -> Result<V, ParseError> {
+
+    pub fn err_rs<V>(&self, s: &'static str) -> Result<V, PErr<'a>> {
+        Err(self.err_s(s))
+    }
+
+    pub fn err_p<P: Parser>(&self, p: &P) -> PErr<'a> {
+        self.err(p.expected())
+    }
+    pub fn err_rp<P: Parser, V>(&self, p: &P) -> Result<V, PErr<'a>> {
         Err(self.err_p(p))
     }
-    pub fn err_p_o<P: Parser>(&self, p: &P) -> Option<ParseError> {
+    pub fn err_op<P: Parser>(&self, p: &P) -> Option<PErr<'a>> {
         Some(self.err_p(p))
     }
 
-    pub fn err_cb_o<C: CharBool>(&self, c: &C) -> Option<ParseError> {
-        Some(ParseError::expect(
-            c.expected(),
-            self.index(),
-            self.l,
-            self.c,
-        ))
+    pub fn err_oc<C: CharBool>(&self, c: &C) -> Option<PErr<'a>> {
+        Some(self.err(c.expected()))
     }
 
-    pub fn err_ex(&self, e: Expected) -> ParseError {
-        ParseError::expect(e, self.index(), self.l, self.c)
-    }
-    pub fn err_ex_r<V>(&self, e: Expected) -> Result<V, ParseError> {
-        //println!("err_cr {} {} ", self.l, self.c);
-        Err(ParseError::expect(e, self.index(), self.l, self.c))
+    pub fn err_r<V>(&self, e: Expected) -> Result<V, PErr<'a>> {
+        Err(self.err(e))
     }
 
     pub fn lc(&self) -> (usize, usize) {

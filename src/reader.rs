@@ -100,7 +100,7 @@ pub fn do_keyword<'a, P: Parser>(it: &LCChars<'a>, p: &P) -> ParseRes<'a, P::Out
         Some(c) => {
             let al = (Alpha, NumDigit, '_');
             if al.char_bool(c) {
-                t2.err_ex_r(Expected::except(al.expected()))
+                t2.err_r(Expected::except(al.expected()))
             } else {
                 Ok((t2, r, None))
             }
@@ -137,10 +137,10 @@ pub fn do_tag<'a>(it: &LCChars<'a>, tg: &'static str) -> ParseRes<'a, &'static s
     while let Some(c) = s_it.next() {
         let i2 = it.clone();
         match i.next() {
-            None => return i2.err_r(tg),
+            None => return i2.err_rs(tg),
             Some(ic) => {
                 if ic != c {
-                    return i2.err_r(tg);
+                    return i2.err_rs(tg);
                 }
             }
         }
@@ -157,7 +157,7 @@ pub fn eoi<'a>(i: &LCChars<'a>) -> ParseRes<'a, ()> {
     if r.next() == None {
         return Ok((r, (), None));
     }
-    i.err_ex_r(Expected::EOI)
+    i.err_r(Expected::EOI)
 }
 
 pub fn to_end() -> impl Parser<Out = ()> {
@@ -226,7 +226,7 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
             Ok((it2, ss, _)) => (it2, ss.into()),
             Err(e) => {
                 if self.min == 0 {
-                    return Ok((it.clone(), String::new(), it.err_p_o(&self.a)));
+                    return Ok((it.clone(), String::new(), it.err_op(&self.a)));
                 } else {
                     return Err(e);
                 }
@@ -243,7 +243,7 @@ impl<A: Parser<Out = AV>, AV: Into<String> + AsRef<str>> Parser for StringRepeat
                     if done < self.min {
                         return Err(e);
                     } else {
-                        let eo = nit.err_p_o(&self.a);
+                        let eo = nit.err_op(&self.a);
                         return Ok((nit, res, eo));
                     }
                 }
