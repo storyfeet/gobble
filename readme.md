@@ -248,6 +248,10 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.6.0
+* Updated Error to contain &strs for the Found part of the result;
+  This change is technically breaking, but I do not expect it to break any real code.
+
 ### v 0.5.3
 * Added Hash to error type
 * Added Exists method
