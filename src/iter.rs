@@ -33,11 +33,9 @@ impl<'a> LCChars<'a> {
     }
 
     pub fn err(&self, exp: Expected) -> PErr<'a> {
-        let found = self.iter.as_str();
-        let flen = found.len().min(10);
         PErr {
             exp,
-            found: &found[..flen],
+            found: &self.iter.as_str(),
             index: self.index(),
             line: self.l,
             col: self.c,

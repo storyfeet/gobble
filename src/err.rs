@@ -105,6 +105,10 @@ fn join_children<'a>(a: Option<Box<PErr<'a>>>, b: Option<Box<PErr<'a>>>) -> Opti
     }
 }
 
+pub fn n_chars(s: &str, n: usize) -> String {
+    s.chars().take(n).collect()
+}
+
 impl<'a> PErr<'a> {
     pub fn longer(mut self, b: Self) -> Self {
         match compare_index(&self.index, &b.index) {
@@ -146,7 +150,7 @@ impl<'a> PErr<'a> {
     pub fn strung(self) -> StrungError {
         StrungError {
             exp: self.exp,
-            found: self.found.to_string(),
+            found: n_chars(self.found, 10),
             line: self.line,
             col: self.col,
             index: self.index,
@@ -187,8 +191,16 @@ impl<'a> fmt::Debug for PErr<'a> {
         write!(
             f,
             "Expected '{}', Found '{}', at (i={},l={},c={})\n",
-            self.exp, self.found, i_str, self.line, self.col
-        )
+            self.exp,
+            n_chars(&self.found, 10),
+            i_str,
+            self.line,
+            self.col
+        )?;
+        if let Some(ref c) = self.child {
+            write!(f, "\t{:?}", c)?
+        }
+        Ok(())
     }
 }
 impl<'a> fmt::Display for PErr<'a> {
@@ -200,7 +212,11 @@ impl<'a> fmt::Display for PErr<'a> {
         write!(
             f,
             "Expected '{}', Found '{}', at (i={},l={},c={})\n",
-            self.exp, self.found, i_str, self.line, self.col
+            self.exp,
+            n_chars(&self.found, 10),
+            i_str,
+            self.line,
+            self.col
         )?;
         if let Some(ref c) = self.child {
             write!(f, "\t{}", c)?
