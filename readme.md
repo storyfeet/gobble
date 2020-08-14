@@ -248,6 +248,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.6.2
+* Fix a bug with non ascii chars 
+
 ### v 0.6.1
 * Put back the 'longer' method on ParseErr so that Or wouldn't give crazy long errors
 
