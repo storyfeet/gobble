@@ -23,7 +23,7 @@ pub fn do_exact<'a, A: Parser>(it: &LCChars<'a>, a: &A, n: usize) -> ParseRes<'a
                 res.push(pres);
                 i = it2;
             }
-            Err(e) => return Err(e.wrap(i.err_p(a))),
+            Err(e) => return Err(e.join(i.err_p(a))),
         }
     }
     return Ok((i, res, None));

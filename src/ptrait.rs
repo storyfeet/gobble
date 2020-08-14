@@ -203,7 +203,7 @@ where
             Err(e) => match self.b.parse(i) {
                 Ok((r, v, ex)) => Ok((r, v, ex)),
                 Err(e2) if e2.is_brk => Err(e2),
-                Err(e2) => Err(e.join(e2)),
+                Err(e2) => Err(e.longer(e2)),
             },
         }
     }

@@ -248,6 +248,9 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.6.1
+* Put back the 'longer' method on ParseErr so that Or wouldn't give crazy long errors
+
 ### v 0.6.0
 * Updated Error to contain &strs for the Found part of the result;
   This change is technically breaking, but I do not expect it to break any real code.

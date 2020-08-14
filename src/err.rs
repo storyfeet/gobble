@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-//use std::error::Error;
 use std::fmt;
 use std::fmt::Debug;
 use thiserror::*;
@@ -8,7 +7,7 @@ use thiserror::*;
 pub enum Expected {
     EOI,
     Char(char),
-    WS,
+    Nil,
     CharIn(&'static str),
     ObOn(&'static str, &'static str),
     Str(&'static str),
@@ -22,7 +21,7 @@ impl fmt::Display for Expected {
         match self {
             EOI => write!(f, "EOI"),
             Char(c) => write!(f, "Char:\"{}\"", c),
-            WS => write!(f, "WhiteSpace"),
+            Nil => write!(f, "Nil"),
             CharIn(s) => write!(f, "Char In {:?}", s),
             ObOn(p, o) => write!(f, "{} on parser {}", o, p),
             Str(s) => write!(f, "{:?}", s),
@@ -51,15 +50,27 @@ impl Expected {
     pub fn except(a: Self) -> Self {
         Expected::Except(Box::new(a))
     }
-    pub fn is_nil(&self) -> bool {
-        match self {
-            Expected::WS => true,
-            _ => false,
+
+    pub fn join(self, b: Self) -> Self {
+        match (self, b) {
+            (Expected::OneOf(mut ae), Expected::OneOf(be)) => {
+                ae.extend(be);
+                Expected::OneOf(ae)
+            }
+            (Expected::OneOf(mut ae), b) | (b, Expected::OneOf(mut ae)) => {
+                if b != Expected::Nil {
+                    ae.push(b);
+                }
+                Expected::OneOf(ae)
+            }
+            (Expected::Nil, a) => a,
+            (a, Expected::Nil) => a,
+            (a, b) => Expected::OneOf(vec![a, b]),
         }
     }
 
     pub fn first(a: Self, b: Self) -> Self {
-        match a.is_nil() {
+        match a == Expected::Nil {
             true => b,
             false => a,
         }
@@ -95,6 +106,18 @@ fn join_children<'a>(a: Option<Box<PErr<'a>>>, b: Option<Box<PErr<'a>>>) -> Opti
 }
 
 impl<'a> PErr<'a> {
+    pub fn longer(mut self, b: Self) -> Self {
+        match compare_index(&self.index, &b.index) {
+            Ordering::Greater => self,
+            Ordering::Less => b,
+            _ => {
+                self.child = join_children(self.child, b.child);
+                self.exp = self.exp.join(b.exp);
+                self
+            }
+        }
+    }
+
     pub fn join(mut self, mut b: Self) -> Self {
         match compare_index(&self.index, &b.index) {
             Ordering::Greater => {
@@ -107,19 +130,7 @@ impl<'a> PErr<'a> {
             }
             _ => {
                 self.child = join_children(self.child, b.child);
-                self.exp = match (self.exp, b.exp) {
-                    (Expected::OneOf(mut ae), Expected::OneOf(be)) => {
-                        ae.extend(be);
-                        Expected::OneOf(ae)
-                    }
-                    (Expected::OneOf(mut ae), b) | (b, Expected::OneOf(mut ae)) => {
-                        if b != Expected::WS {
-                            ae.push(b);
-                        }
-                        Expected::OneOf(ae)
-                    }
-                    (a, b) => Expected::OneOf(vec![a, b]),
-                };
+                self.exp = self.exp.join(b.exp);
                 self
             }
         }
@@ -144,13 +155,13 @@ impl<'a> PErr<'a> {
         }
     }
 
-    pub fn wrap(mut self, ne: Self) -> Self {
+    /*    pub fn wrap(mut self, ne: Self) -> Self {
         match self.child {
             Some(c) => self.child = Some(Box::new(c.wrap(ne))),
             None => self.child = Some(Box::new(ne)),
         }
         self
-    }
+    }*/
 
     /*pub fn new_exp(mut self, nexp: Expected) -> ParseError {
         self.exp = nexp;

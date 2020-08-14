@@ -39,7 +39,7 @@ macro_rules! parser {
                     Ok(v)=> Ok(v),
                     Err(e)=> match (e.index,name_e.index) {
                         (Some(ei),Some(ii)) if (ii == ei) => it.err_rp(self),
-                        _=>Err(e.wrap(name_e)),
+                        _=>Err(e.join(name_e)),
                     }
                 }
             }
