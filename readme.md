@@ -248,6 +248,10 @@ assert_eq!(r,Expr::Add(
 
 ## Changelog:
 
+### v 0.6.3
+
+* Added a traits module for exporting traits only;
+
 ### v 0.6.2
 * Fix a bug with non ascii chars 
 

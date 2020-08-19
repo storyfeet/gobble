@@ -260,6 +260,7 @@ pub mod reader;
 pub mod repeater;
 pub mod skip;
 pub mod strings;
+pub mod traits;
 pub mod tuple;
 
 pub use chars::*;
