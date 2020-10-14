@@ -123,7 +123,9 @@ pub fn debug<P: Parser>(p: P, s: &'static str) -> PDebugger<P> {
 impl<P: Parser> Parser for PDebugger<P> {
     type Out = P::Out;
     fn parse<'a>(&self, it: &LCChars<'a>) -> ParseRes<'a, Self::Out> {
-        println!("DebuggerPre - {}", self.s);
+        let pstr = it.clone().as_str();
+        let plen = pstr.len().min(10);
+        println!("DebuggerPre - {} >>{:?}", self.s, &pstr[..plen]);
         let r = self.p.parse(it);
         match &r {
             Ok((nit, _, _)) => {
